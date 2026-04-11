@@ -45,5 +45,15 @@ Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh | sudo bash
 ```
 
+- Gerar e Adicionar a Chave SSH
+Se você ainda não tem uma chave ou o GitHub não a conhece, faça isso:
+1. Gerar a chave (dê ENTER em tudo):
+```bash
+ssh-keygen -t ed25519 -C "docker-vps"
+```
+2. Copiar a chave gerada:
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
 ---
 **Desenvolvido por Francisco Silva (FSilva) — 2026** *Licença: MIT*
