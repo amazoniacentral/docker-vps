@@ -29,7 +29,6 @@ Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho 
 
 ### 5. Orquestração
 * **Rede Docker:** Cria a rede externa `web` para comunicação isolada entre containers.
-* **Permissões SSL:** Cria e configura o arquivo `acme.json` com permissões `600`, requisito de segurança para armazenar certificados Let's Encrypt.
 
 
 ## 🚀 Como Executar
