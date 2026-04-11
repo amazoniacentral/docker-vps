@@ -1,4 +1,4 @@
-# Infra VPS Docker - FSilva 🚀
+# Docker VPS 🚀
 
 Este repositório contém o script de provisionamento automatizado para transformar uma VPS **Debian 12 Bookworm** limpa em um servidor de produção de alta performance, pronto para orquestrar containers Docker com o proxy.
 
@@ -38,7 +38,7 @@ Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para
 ```bash
 apt update && apt install -y wget unzip && \
 wget https://github.com/amazoniacentral/docker-vps/archive/refs/heads/main.zip -O setup.zip && \
-unzip -o setup.zip && cd docker-vps-main && sudo bash install
+unzip -o setup.zip && cd docker-vps-main && sudo bash preparar_vps.sh
 ```
 
 ---
