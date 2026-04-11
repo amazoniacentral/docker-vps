@@ -91,19 +91,22 @@ sysctl -p
 
 
 echo "== Configuração do Git =="
-
-# Loop de validação
+# Loop de validação lendo explicitamente do terminal (/dev/tty)
 while true; do
-    read -p "Deseja instalar e configurar o Git agora? (s/n): " CONFIRM_GIT
+    echo -n "Deseja instalar e configurar o Git agora? (s/n): "
+    read -r CONFIRM_GIT < /dev/tty
+    
     case $CONFIRM_GIT in
         [Ss]* ) 
             echo "Instalando Git..."
             apt update && apt install -y git
 
-            # Solicitação de dados
+            # Solicitação de dados lendo do terminal
             echo "--------------------------------------------------"
-            read -p "Digite o Nome de Usuário Git (ex: Francisco Silva): " GIT_USER
-            read -p "Digite o E-mail do Git: " GIT_EMAIL
+            echo -n "Digite o Nome de Usuário Git (ex: Francisco Silva): "
+            read -r GIT_USER < /dev/tty
+            echo -n "Digite o E-mail do Git: "
+            read -r GIT_EMAIL < /dev/tty
             echo "--------------------------------------------------"
 
             # Configurações globais
@@ -111,7 +114,7 @@ while true; do
             git config --global user.email "$GIT_EMAIL"
             git config --global --add safe.directory '*'
 
-            # Geração de chave SSH para Pull de repositórios privados
+            # Geração de chave SSH
             SSH_FILE="$HOME/.ssh/id_ed25519"
             if [ ! -f "$SSH_FILE" ]; then
                 echo "Gerando chave SSH Ed25519..."
@@ -125,18 +128,17 @@ while true; do
             echo "Adicione a chave abaixo no GitHub (Deploy Keys):"
             cat "${SSH_FILE}.pub"
             echo "--------------------------------------------------"
-            break # Sai do loop após configurar
+            break 
             ;;
         [Nn]* ) 
             echo "Instalação do Git pulada pelo usuário."
-            break # Sai do loop sem configurar
+            break 
             ;;
         * ) 
             echo "Resposta inválida. Por favor, digite 's' para Sim ou 'n' para Não."
             ;;
     esac
 done
-
 
 echo "== Limpeza final =="
 apt autoremove -y && apt autoclean
