@@ -59,7 +59,7 @@ ufw --force enable
 # 5. Aplica as alterações
 ufw reload
 
-echo "== Configurando Traefik (Rede e Permissões) =="
+echo "== Configurando Rede =="
 docker network create web 2>/dev/null || true
 
 echo "== Configurando ZRAM (Camada 1: RAM Comprimida) =="
@@ -91,40 +91,51 @@ sysctl -p
 
 
 echo "== Configuração do Git =="
-read -p "Deseja instalar e configurar o Git agora? (s/n): " CONFIRM_GIT
 
-if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
-    echo "Instalando Git..."
-    apt update && apt install -y git
+# Loop de validação
+while true; do
+    read -p "Deseja instalar e configurar o Git agora? (s/n): " CONFIRM_GIT
+    case $CONFIRM_GIT in
+        [Ss]* ) 
+            echo "Instalando Git..."
+            apt update && apt install -y git
 
-    # Solicitação de dados
-    echo "--------------------------------------------------"
-    read -p "Digite o Nome de Usuário Git (ex: Francisco Silva): " GIT_USER
-    read -p "Digite o E-mail do Git: " GIT_EMAIL
-    echo "--------------------------------------------------"
+            # Solicitação de dados
+            echo "--------------------------------------------------"
+            read -p "Digite o Nome de Usuário Git (ex: Francisco Silva): " GIT_USER
+            read -p "Digite o E-mail do Git: " GIT_EMAIL
+            echo "--------------------------------------------------"
 
-    # Configurações globais
-    git config --global user.name "$GIT_USER"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global --add safe.directory '*'
+            # Configurações globais
+            git config --global user.name "$GIT_USER"
+            git config --global user.email "$GIT_EMAIL"
+            git config --global --add safe.directory '*'
 
-    # Geração de chave SSH para Pull de repositórios privados
-    SSH_FILE="$HOME/.ssh/id_ed25519"
-    if [ ! -f "$SSH_FILE" ]; then
-        echo "Gerando chave SSH Ed25519..."
-        ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$SSH_FILE" -N ""
-        eval "$(ssh-agent -s)"
-        ssh-add "$SSH_FILE"
-    fi
+            # Geração de chave SSH para Pull de repositórios privados
+            SSH_FILE="$HOME/.ssh/id_ed25519"
+            if [ ! -f "$SSH_FILE" ]; then
+                echo "Gerando chave SSH Ed25519..."
+                ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$SSH_FILE" -N ""
+                eval "$(ssh-agent -s)"
+                ssh-add "$SSH_FILE"
+            fi
 
-    echo "--------------------------------------------------"
-    echo "GIT CONFIGURADO COM SUCESSO"
-    echo "Adicione a chave abaixo no GitHub (Deploy Keys):"
-    cat "${SSH_FILE}.pub"
-    echo "--------------------------------------------------"
-else
-    echo "Instalação do Git pulada."
-fi
+            echo "--------------------------------------------------"
+            echo "GIT CONFIGURADO COM SUCESSO"
+            echo "Adicione a chave abaixo no GitHub (Deploy Keys):"
+            cat "${SSH_FILE}.pub"
+            echo "--------------------------------------------------"
+            break # Sai do loop após configurar
+            ;;
+        [Nn]* ) 
+            echo "Instalação do Git pulada pelo usuário."
+            break # Sai do loop sem configurar
+            ;;
+        * ) 
+            echo "Resposta inválida. Por favor, digite 's' para Sim ou 'n' para Não."
+            ;;
+    esac
+done
 
 
 echo "== Limpeza final =="
