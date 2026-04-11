@@ -1,6 +1,6 @@
 # Infra VPS Docker - FSilva 🚀
 
-Este repositório contém o script de provisionamento automatizado para transformar uma VPS **Debian 12 Bookworm** limpa em um servidor de produção de alta performance, pronto para orquestrar containers Docker com o proxy **Traefik**.
+Este repositório contém o script de provisionamento automatizado para transformar uma VPS **Debian 12 Bookworm** limpa em um servidor de produção de alta performance, pronto para orquestrar containers Docker com o proxy.
 
 ## 🛠 O que o Script faz?
 
