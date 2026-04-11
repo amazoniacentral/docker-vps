@@ -90,6 +90,43 @@ echo "vm.swappiness=10" >> /etc/sysctl.conf
 sysctl -p
 
 
+echo "== Configuração do Git =="
+read -p "Deseja instalar e configurar o Git agora? (s/n): " CONFIRM_GIT
+
+if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
+    echo "Instalando Git..."
+    apt update && apt install -y git
+
+    # Solicitação de dados
+    echo "--------------------------------------------------"
+    read -p "Digite o Nome de Usuário Git (ex: Francisco Silva): " GIT_USER
+    read -p "Digite o E-mail do Git: " GIT_EMAIL
+    echo "--------------------------------------------------"
+
+    # Configurações globais
+    git config --global user.name "$GIT_USER"
+    git config --global user.email "$GIT_EMAIL"
+    git config --global --add safe.directory '*'
+
+    # Geração de chave SSH para Pull de repositórios privados
+    SSH_FILE="$HOME/.ssh/id_ed25519"
+    if [ ! -f "$SSH_FILE" ]; then
+        echo "Gerando chave SSH Ed25519..."
+        ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$SSH_FILE" -N ""
+        eval "$(ssh-agent -s)"
+        ssh-add "$SSH_FILE"
+    fi
+
+    echo "--------------------------------------------------"
+    echo "GIT CONFIGURADO COM SUCESSO"
+    echo "Adicione a chave abaixo no GitHub (Deploy Keys):"
+    cat "${SSH_FILE}.pub"
+    echo "--------------------------------------------------"
+else
+    echo "Instalação do Git pulada."
+fi
+
+
 echo "== Limpeza final =="
 apt autoremove -y && apt autoclean
 

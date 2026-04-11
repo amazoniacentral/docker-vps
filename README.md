@@ -45,5 +45,15 @@ apt update && apt install -y curl && curl -L https://github.com/amazoniacentral/
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh | sudo bash
 ```
 
+gerar chave ssh
+```bash
+ssh-keygen -t ed25519 -C "vps-fsilva-cloud"
+```
+
+chave pública
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
 ---
 **Desenvolvido por Francisco Silva (FSilva) — 2026** *Licença: MIT*
