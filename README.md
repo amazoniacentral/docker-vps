@@ -31,16 +31,13 @@ Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho 
 * **Rede Docker:** Cria a rede externa `web` para comunicação isolada entre containers.
 
 
-## 🚀 Como Executar
+## 🚀 Instalação Rápida (One-Liner)
 
-1.  **Dê permissão de execução ao script:**
-    ```bash
-    chmod +x preparar_vps.sh
-    ```
-2.  **Execute com privilégios de root:**
-    ```bash
-    sudo ./preparar_vps.sh
-    ```
+Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para configurar toda a infraestrutura automaticamente:
+
+```bash
+curl -fsSL [https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh](https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh) | sudo bash
+```
 
 ---
 **Desenvolvido por Francisco Silva (FSilva) — 2026** *Licença: MIT*
