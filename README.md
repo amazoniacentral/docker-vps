@@ -27,7 +27,7 @@ Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho 
 * **SWAP de Disco (Camada 2):** Cria um arquivo de reserva de **4GB** no SSD.
 * **Ajuste de Swappiness:** Define o kernel para `vm.swappiness=10`, garantindo que o sistema priorize a RAM/ZRAM e só use o disco em caso de necessidade extrema.
 
-### 5. Orquestração Traefik
+### 5. Orquestração
 * **Rede Docker:** Cria a rede externa `web` para comunicação isolada entre containers.
 * **Permissões SSL:** Cria e configura o arquivo `acme.json` com permissões `600`, requisito de segurança para armazenar certificados Let's Encrypt.
 
