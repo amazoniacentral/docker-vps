@@ -35,24 +35,14 @@ Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho 
 
 Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para configurar toda a infraestrutura automaticamente:
 
-- Baixando para preparar
-```bash
-apt update && apt install -y curl && curl -L https://github.com/amazoniacentral/docker-vps/archive/main.tar.gz | tar xz && cd docker-vps-main && sudo bash preparar_vps.sh
-```
+<!--- Baixando para preparar-->
+<!--```bash-->
+<!--apt update && apt install -y curl && curl -L https://github.com/amazoniacentral/docker-vps/archive/main.tar.gz | tar xz && cd docker-vps-main && sudo bash preparar_vps.sh-->
+<!--```-->
 
-- Preparar direto
+- Use este comando para preparar a VPS
 ```bash
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh | sudo bash
-```
-
-gerar chave ssh
-```bash
-ssh-keygen -t ed25519 -C "vps-fsilva-cloud"
-```
-
-chave pública
-```bash
-cat ~/.ssh/id_ed25519.pub
 ```
 
 ---
