@@ -11,7 +11,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Definição de Cores (Interpretadas corretamente pelo shell)
+# Definição de Cores (Escape direto para evitar erro de interpretação literal)
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -121,7 +121,7 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     echo -e "${GREEN}Acesso por senha desativado.${RESET}"
 fi
 
-# --- FASE 8: LOG FINAL CORRIGIDO ---
+# --- FASE 8: LOG FINAL (RESOLVIDO PROBLEMA DE CORES) ---
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
@@ -136,12 +136,12 @@ CPU_MODEL=$(lscpu | grep "Model name" | cut -d':' -f2 | xargs)
 PKGS=$(dpkg -l | grep -c "^ii")
 CURRENT_DATE=$(date "+%d/%m/%Y %H:%M:%S")
 
-printf "%-25s %-15s\n" "SISTEMA OPERACIONAL:" "$OS_VERSION"
-printf "%-25s %-15s\n" "KERNEL:" "$KERNEL"
-printf "%-25s %-15s\n" "MODELO CPU:" "$CPU_MODEL"
-printf "%-25s %-15s\n" "PACOTES INSTALADOS:" "$PKGS"
-printf "%-25s ${GREEN}%-15s${RESET}\n" "TEMPO DE VIDA (UP):" "$UPTIME_ALIVE"
-printf "%-25s %-15s\n" "DATA/HORA ATUAL:" "$CURRENT_DATE"
+echo -e "SISTEMA OPERACIONAL:      $OS_VERSION"
+echo -e "KERNEL:                   $KERNEL"
+echo -e "MODELO CPU:               $CPU_MODEL"
+echo -e "PACOTES INSTALADOS:       $PKGS"
+echo -e "TEMPO DE VIDA (UP):       ${GREEN}$UPTIME_ALIVE${RESET}"
+echo -e "DATA/HORA ATUAL:          $CURRENT_DATE"
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           RECURSOS DA VPS (MEMÓRIA E SWAP)${RESET}"
@@ -151,35 +151,32 @@ RAM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
 RAM_AVAIL=$(free -m | awk '/Mem:/ {print $7}')
 RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100}")
 
-ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
-ZRAM_TOTAL_MB=$(echo $ZRAM_DATA | awk '{printf "%.0f", $2/1024/1024}')
-DISK_SWAP=$(swapon --show=NAME,SIZE,USED --bytes | grep "/swapfile" || echo "swapfile 0 0")
-DISK_TOTAL_MB=$(echo $DISK_SWAP | awk '{printf "%.0f", $2/1024/1024}')
+ZRAM_TOTAL_MB=$(swapon --show=SIZE --bytes | grep "zram0" | awk '{printf "%.0f", $1/1024/1024}' || echo "0")
+DISK_TOTAL_MB=$(swapon --show=SIZE --bytes | grep "/swapfile" | awk '{printf "%.0f", $1/1024/1024}' || echo "0")
 
 printf "${CYAN}%-15s %-12s %-12s %-12s${RESET}\n" "TIPO" "TOTAL" "DISPONÍVEL" "USO %"
-printf "%-15s %-12s %-12s %-12s\n" "RAM (MB)" "$RAM_TOTAL" "$RAM_AVAIL" "$RAM_PERC%"
-printf "%-15s %-12s %-12s %-12s\n" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "Ativo"
-printf "%-15s %-12s %-12s %-12s\n" "SWAP (MB)" "$DISK_TOTAL_MB" "-" "Ativo"
+echo -e "$(printf "%-15s %-12s %-12s %-12s" "RAM (MB)" "$RAM_TOTAL" "$RAM_AVAIL" "$RAM_PERC%")"
+echo -e "$(printf "%-15s %-12s %-12s %-12s" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "Ativo")"
+echo -e "$(printf "%-15s %-12s %-12s %-12s" "SWAP (MB)" "$DISK_TOTAL_MB" "-" "Ativo")"
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           SEGURANÇA E SERVIÇOS CRÍTICOS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Correção da lógica de exibição do SSH no printf
+# Verificação do SSH com cor real
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
-    SSH_MSG="${GREEN}PROTEGIDO (SOMENTE CHAVE)${RESET}"
+    SSH_STATUS="${GREEN}PROTEGIDO (SOMENTE CHAVE)${RESET}"
 else
-    SSH_MSG="${RED}SENHA ATIVA (VULNERÁVEL)${RESET}"
+    SSH_STATUS="${RED}SENHA ATIVA (VULNERÁVEL)${RESET}"
 fi
 
 D_VER=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "N/A")
 G_NAME=$(git config --global user.name || echo "N/A")
 
-# Uso do echo -e para garantir a interpretação das cores dentro da formatação
-echo -e "$(printf "%-25s" "AUTENTICAÇÃO SSH:") $SSH_MSG"
-echo -e "$(printf "%-25s" "IPTABLES-PERSISTENT:") ${GREEN}INSTALADO${RESET}"
-echo -e "$(printf "%-25s" "DOCKER ENGINE:") ${GREEN}v$D_VER${RESET}"
-echo -e "$(printf "%-25s" "USUÁRIO GIT:") ${GREEN}$G_NAME${RESET}"
+echo -e "AUTENTICAÇÃO SSH:         $SSH_STATUS"
+echo -e "IPTABLES-PERSISTENT:      ${GREEN}INSTALADO${RESET}"
+echo -e "DOCKER ENGINE:            ${GREEN}v$D_VER${RESET}"
+echo -e "USUÁRIO GIT:              ${GREEN}$G_NAME${RESET}"
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${GREEN}             SETUP FINALIZADO COM SUCESSO!${RESET}"
