@@ -11,7 +11,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Cores para o terminal
+# Definição de Cores (Interpretadas corretamente pelo shell)
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -30,7 +30,6 @@ apt-get install -y psmisc util-linux procps sed grep coreutils
 
 # --- FASE 2: DESBLOQUEIO E LIMPEZA ---
 echo "== Verificando travas de processos (APT/DPKG) =="
-# Agora o fuser existe e vai rodar
 fuser -vki /var/lib/dpkg/lock-frontend || true
 fuser -vki /var/lib/apt/lists/lock || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
@@ -47,7 +46,6 @@ echo "== Atualizando Repositórios e Sistema =="
 apt-get upgrade -y
 
 echo "== Instalando pacotes base =="
-# lscpu já foi instalado pelo util-linux acima
 apt-get install -y netfilter-persistent iptables-persistent \
   ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc jq git
 
@@ -123,7 +121,7 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     echo -e "${GREEN}Acesso por senha desativado.${RESET}"
 fi
 
-# --- FASE 8: LOG FINAL (MODELO FSilva) ---
+# --- FASE 8: LOG FINAL CORRIGIDO ---
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
@@ -155,7 +153,6 @@ RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100
 
 ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
 ZRAM_TOTAL_MB=$(echo $ZRAM_DATA | awk '{printf "%.0f", $2/1024/1024}')
-
 DISK_SWAP=$(swapon --show=NAME,SIZE,USED --bytes | grep "/swapfile" || echo "swapfile 0 0")
 DISK_TOTAL_MB=$(echo $DISK_SWAP | awk '{printf "%.0f", $2/1024/1024}')
 
@@ -168,19 +165,21 @@ echo -e "\n${CYAN}==============================================================
 echo -e "${YELLOW}           SEGURANÇA E SERVIÇOS CRÍTICOS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
+# Correção da lógica de exibição do SSH no printf
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
-    STATUS_SSH="${GREEN}PROTEGIDO (SOMENTE CHAVE)${RESET}"
+    SSH_MSG="${GREEN}PROTEGIDO (SOMENTE CHAVE)${RESET}"
 else
-    STATUS_SSH="${RED}SENHA ATIVA (VULNERÁVEL)${RESET}"
+    SSH_MSG="${RED}SENHA ATIVA (VULNERÁVEL)${RESET}"
 fi
 
 D_VER=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "N/A")
 G_NAME=$(git config --global user.name || echo "N/A")
 
-printf "%-25s %-15s\n" "AUTENTICAÇÃO SSH:" "$STATUS_SSH"
-printf "%-25s ${GREEN}%-15s${RESET}\n" "IPTABLES-PERSISTENT:" "INSTALADO"
-printf "%-25s ${GREEN}v%-14s${RESET}\n" "DOCKER ENGINE:" "$D_VER"
-printf "%-25s ${GREEN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_NAME"
+# Uso do echo -e para garantir a interpretação das cores dentro da formatação
+echo -e "$(printf "%-25s" "AUTENTICAÇÃO SSH:") $SSH_MSG"
+echo -e "$(printf "%-25s" "IPTABLES-PERSISTENT:") ${GREEN}INSTALADO${RESET}"
+echo -e "$(printf "%-25s" "DOCKER ENGINE:") ${GREEN}v$D_VER${RESET}"
+echo -e "$(printf "%-25s" "USUÁRIO GIT:") ${GREEN}$G_NAME${RESET}"
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${GREEN}             SETUP FINALIZADO COM SUCESSO!${RESET}"
