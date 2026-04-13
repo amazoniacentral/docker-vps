@@ -151,22 +151,27 @@ printf "%-25s ${GREEN}%-15s${RESET}\n" "TEMPO DE VIDA (UP):" "$UPTIME_ALIVE"
 printf "%-25s %-15s\n" "DATA/HORA ATUAL:" "$CURRENT_DATE"
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           SEGURANÇA E FIREWALL (IPTABLES DOCKER-USER)${RESET}"
+echo -e "${YELLOW}           IDENTIDADE E SEGURANÇA (GIT & SSH)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
+# Verificação SSH
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
     printf "%-25s ${GREEN}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "CHAVE (OK)"
 else
     printf "%-25s ${RED}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "SENHA (VULNERÁVEL)"
 fi
 
-# Git Info no Log
-G_NAME=$(git config --global user.name || echo "Não Configurado")
-G_EMAIL=$(git config --global user.email || echo "Não Configurado")
-printf "%-25s ${GREEN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_NAME"
-printf "%-25s ${GREEN}%-15s${RESET}\n" "E-MAIL GIT:" "$G_EMAIL"
+# Informações do Git
+G_USER=$(git config --global user.name || echo "N/A")
+G_MAIL=$(git config --global user.email || echo "N/A")
+printf "%-25s ${CYAN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_USER"
+printf "%-25s ${CYAN}%-15s${RESET}\n" "E-MAIL GIT:" "$G_MAIL"
 
-printf "\n%-25s " "IPTABLES (DOCKER-USER):"
+echo -e "\n${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}           FIREWALL E REDE (IPTABLES DOCKER-USER)${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+
+printf "%-25s " "IPTABLES (DOCKER-USER):"
 if iptables -L DOCKER-USER -n >/dev/null 2>&1; then
     RULE_COUNT=$(iptables -L DOCKER-USER -n | wc -l)
     if [ "$RULE_COUNT" -gt 2 ]; then
@@ -179,12 +184,8 @@ else
     echo -e "${RED}CORRENTE NÃO ENCONTRADA${RESET}"
 fi
 
-echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           REDES E CONECTIVIDADE DA VPS${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-
 IPV4_PUB=$(curl -s4 icanhazip.com || echo "N/A")
-printf "%-25s ${YELLOW}%-15s${RESET}\n" "IP PÚBLICO (IPv4):" "$IPV4_PUB"
+printf "\n%-25s ${YELLOW}%-15s${RESET}\n" "IP PÚBLICO (IPv4):" "$IPV4_PUB"
 
 echo -e "\n${CYAN}Interfaces e Redes Docker:${RESET}"
 printf "%-18s %-15s %-12s %-12s %-15s\n" "INTERFACE" "IP" "RECEBIDO" "ENVIADO" "DOCKER NET"
