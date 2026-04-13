@@ -13,7 +13,7 @@ echo "== Atualizando sistema =="
 apt update && apt upgrade -y
 
 echo "== Instalando pacotes básicos =="
-apt install -y ca-certificates curl gnupg lsb-release ufw htop unzip zram-tools htpdate fail2ban
+apt install -y ca-certificates curl gnupg lsb-release ufw htop unzip zram-tools htpdate fail2ban tree
 
 #Ajustar Relógio
 timedatectl set-timezone America/Sao_Paulo
