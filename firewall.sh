@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # =================================================================
 # SCRIPT DE FIREWALL DEFINITIVO - IPTABLES + PERSISTÊNCIA (V2)
@@ -9,6 +10,19 @@ if [[ $EUID -ne 0 ]]; then
    echo "Erro: Este script deve ser executado como root."
    exit 1
 fi
+
+# Definição de Cores
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+RESET='\033[0m'
+
+clear
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}           SCRIPT DE FIREWALL DEFINITIVO - IPTABLES + PERSISTÊNCIA (V2)${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+
 
 # 2. Instalação do iptables-persistent (caso não exista)
 if ! dpkg -l | grep -q iptables-persistent; then
