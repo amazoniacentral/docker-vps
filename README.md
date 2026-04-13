@@ -45,6 +45,19 @@ Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh | sudo bash
 ```
 
+- Firewall de segurança
+As portas 22 (ssh), 80 (http) e 443 (https) foram configuradas no comando acima junto com a preparação da VPS.
+Se quiser aqui pode alterar para mais protecão, exemplo se vai usar pela cloudflare
+```bash
+apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/firewall.sh | sudo bash
+```
+
+- Checar o status das configurações
+Para conferir o que foi configurado, rode o comando para ver o status da VPS
+```bash
+apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/status.sh | sudo bash
+```
+
 - Gerar e Adicionar a Chave SSH
 Se você ainda não tem uma chave ou o GitHub não a conhece, faça isso:
 1. Gerar a chave (dê ENTER em tudo):
