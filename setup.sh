@@ -23,14 +23,20 @@ echo -e "${CYAN}================================================================
 echo -e "${YELLOW}           INICIANDO SETUP E OTIMIZAÇÃO DA VPS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# --- FASE 1: DESBLOQUEIO E LIMPEZA ---
+# --- FASE 1: INSTALAÇÃO DE DEPENDÊNCIAS DE SISTEMA (CORREÇÃO) ---
+echo "== Instalando utilitários de processo e sistema =="
+apt update
+apt install -y psmisc util-linux procps
+
+# --- FASE 2: DESBLOQUEIO E LIMPEZA ---
 echo "== Verificando travas de processos (APT/DPKG) =="
+# Agora o fuser vai funcionar
 fuser -vki /var/lib/dpkg/lock-frontend || true
 fuser -vki /var/lib/apt/lists/lock || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
 dpkg --configure -a
 
-# --- FASE 2: INSTALAÇÃO SILENCIOSA ---
+# --- FASE 3: INSTALAÇÃO SILENCIOSA ---
 echo "== Configurando ambiente não-interativo =="
 echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
 echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
@@ -38,17 +44,18 @@ echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debcon
 export DEBIAN_FRONTEND=noninteractive
 
 echo "== Atualizando Repositórios e Sistema =="
-apt update && apt upgrade -y
+apt upgrade -y
 
 echo "== Instalando pacotes base =="
+# Removido 'lscpu' (é comando do util-linux) e adicionado as ferramentas corretas
 apt install -y netfilter-persistent iptables-persistent \
-  ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc jq lscpu git
+  ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc jq git
 
 # Ajustar Relógio
 timedatectl set-timezone America/Sao_Paulo
 htpdate -s -t google.com
 
-# --- FASE 3: PERFORMANCE (ZRAM & SWAP) ---
+# --- FASE 4: PERFORMANCE (ZRAM & SWAP) ---
 echo "== Configurando ZRAM (Camada 1: 50% RAM) =="
 cat <<EOF > /etc/default/zramswap
 ALGO=zstd
@@ -72,7 +79,7 @@ sed -i '/vm.swappiness/d' /etc/sysctl.conf
 echo "vm.swappiness=10" >> /etc/sysctl.conf
 sysctl -p
 
-# --- FASE 4: DOCKER V27 ---
+# --- FASE 5: DOCKER V27 ---
 echo -e "\n${YELLOW}Deseja instalar o Docker Engine v27? (s/n)${RESET}"
 read -p "> " INSTALL_DOCKER < /dev/tty
 if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
@@ -90,11 +97,11 @@ if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
     systemctl enable --now docker
 fi
 
-# --- FASE 5: CONFIGURAÇÃO GIT ---
+# --- FASE 6: CONFIGURAÇÃO GIT ---
 echo -e "\n${YELLOW}Deseja configurar o Git agora? (s/n)${RESET}"
 read -p "> " CONFIRM_GIT < /dev/tty
 if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
-    echo -n "Digite o Nome do Git: "
+    echo -n "Digite o Nome de Usuário Git: "
     read -r GIT_USER < /dev/tty
     echo -n "Digite o E-mail do Git: "
     read -r GIT_EMAIL < /dev/tty
@@ -105,7 +112,7 @@ if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
     echo -e "${GREEN}Git configurado para $GIT_USER ($GIT_EMAIL).${RESET}"
 fi
 
-# --- FASE 6: SEGURANÇA SSH ---
+# --- FASE 7: SEGURANÇA SSH ---
 echo -e "\n${YELLOW}Deseja BLOQUEAR acesso por senha no SSH? (s/n)${RESET}"
 echo -e "${RED}AVISO: Tenha sua chave pública no authorized_keys antes!${RESET}"
 read -p "> " CONFIRM_SSH < /dev/tty
@@ -116,14 +123,14 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     echo -e "${GREEN}Acesso por senha desativado.${RESET}"
 fi
 
-# --- FASE 7: LOG FINAL (MODELO FSilva) ---
+# --- FASE 8: LOG FINAL (MODELO FSilva) ---
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           STATUS GERAL DA VPS (PÓS-CONFIGURAÇÃO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Coleta de Dados
+# Coleta de Dados (Usando caminhos absolutos para evitar command not found)
 UPTIME_ALIVE=$(uptime -p | sed 's/up //')
 OS_VERSION=$(grep "PRETTY_NAME" /etc/os-release | cut -d'"' -f2)
 KERNEL=$(uname -r)
@@ -148,7 +155,6 @@ RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100
 
 ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
 ZRAM_TOTAL_MB=$(echo $ZRAM_DATA | awk '{printf "%.0f", $2/1024/1024}')
-ZRAM_PERC=$(awk "BEGIN {printf \"%.2f\", ($ZRAM_TOTAL_MB > 0 ? ($ZRAM_DATA ? 100 : 0) : 0)}") # Simplificado para o log de setup
 
 DISK_SWAP=$(swapon --show=NAME,SIZE,USED --bytes | grep "/swapfile" || echo "swapfile 0 0")
 DISK_TOTAL_MB=$(echo $DISK_SWAP | awk '{printf "%.0f", $2/1024/1024}')
