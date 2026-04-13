@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# =================================================================
+# SCRIPT DE MONITORAMENTO VPS - FSilva Cloud
+# =================================================================
+
 # Cores para o terminal
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
@@ -28,17 +32,37 @@ printf "%-25s ${GREEN}%-15s${RESET}\n" "TEMPO DE VIDA (UP):" "$UPTIME_ALIVE"
 printf "%-25s %-15s\n" "DATA/HORA ATUAL:" "$CURRENT_DATE"
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           SEGURANÇA E FIREWALL (UFW)${RESET}"
+echo -e "${YELLOW}           SEGURANÇA E FIREWALL (UFW & IPTABLES)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Verifica Status do UFW
-UFW_STATUS=$(ufw status | head -n 1 | awk '{print $2}')
-if [ "$UFW_STATUS" == "active" ]; then
-    printf "%-25s ${GREEN}%-15s${RESET}\n" "STATUS DO FIREWALL:" "ATIVO/PROTEGIDO"
-    echo -e "${CYAN}Regras Ativas:${RESET}"
-    ufw status numbered | sed 's/^/  /'
+# 1. Checagem do UFW
+if command -v ufw >/dev/null 2>&1; then
+    UFW_STATUS=$(ufw status | head -n 1 | awk '{print $2}')
+    if [ "$UFW_STATUS" == "active" ]; then
+        printf "%-25s ${GREEN}%-15s${RESET}\n" "UFW STATUS:" "ATIVO"
+        ufw status numbered | sed 's/^/  /'
+    else
+        printf "%-25s ${RED}%-15s${RESET}\n" "UFW STATUS:" "INATIVO"
+    fi
 else
-    printf "%-25s ${RED}%-15s${RESET}\n" "STATUS DO FIREWALL:" "DESATIVADO (PERIGO)"
+    printf "%-25s ${YELLOW}%-15s${RESET}\n" "UFW STATUS:" "NÃO INSTALADO"
+fi
+
+echo -e "---"
+
+# 2. Checagem do IPTABLES (DOCKER-USER)
+printf "%-25s " "IPTABLES (DOCKER-USER):"
+if iptables -L DOCKER-USER -n >/dev/null 2>&1; then
+    RULE_COUNT=$(iptables -L DOCKER-USER -n | wc -l)
+    if [ "$RULE_COUNT" -gt 2 ]; then
+        echo -e "${GREEN}ATIVO (PROTEGENDO DOCKER)${RESET}"
+        echo -e "${CYAN}Regras DOCKER-USER:${RESET}"
+        iptables -L DOCKER-USER -n --line-numbers | sed 's/^/  /'
+    else
+        echo -e "${YELLOW}SEM REGRAS DE FILTRO${RESET}"
+    fi
+else
+    echo -e "${RED}CORRENTE NÃO ENCONTRADA${RESET}"
 fi
 
 echo -e "\n${CYAN}Portas em Escuta (Listen):${RESET}"
