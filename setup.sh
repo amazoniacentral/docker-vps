@@ -23,6 +23,13 @@ echo -e "${CYAN}================================================================
 echo -e "${YELLOW}           INICIANDO PREPARAÇÃO AUTOMÁTICA DA VPS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
+# --- FUNÇÃO ANTI-TRAVAMENTO (LOCK-FRONTEND) ---
+echo "== Verificando se o instalador está ocupado =="
+while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+    echo -e "${YELLOW}Aguardando outros processos de atualização terminarem...${RESET}"
+    sleep 5
+done
+
 # --- PARTE 1: AUTOMÁTICA (SISTEMA E MEMÓRIA) ---
 
 echo "== Removendo conflitos e limpando APT =="
@@ -34,8 +41,7 @@ echo "== Atualizando sistema =="
 apt update && apt upgrade -y
 
 echo "== Instalando pacotes básicos (MODO SILENCIOSO) =="
-# O segredo para não abrir a tela azul é o DEBIAN_FRONTEND=noninteractive
-# E o debconf-set-selections para aceitar o salvamento automático
+# Previne a tela azul de configuração
 echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
 echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
 
@@ -153,6 +159,7 @@ apt autoremove -y && apt autoclean
 
 # --- PARTE 5: RELATÓRIO DE STATUS FINAL ---
 
+clear
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           STATUS GERAL DA VPS (PÓS-CONFIGURAÇÃO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
