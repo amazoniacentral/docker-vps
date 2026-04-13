@@ -42,7 +42,7 @@ Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para
 
 - Use este comando para preparar a VPS
 ```bash
-apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/preparar_vps.sh | sudo bash
+apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/setup.sh | sudo bash
 ```
 
 - Firewall de segurança

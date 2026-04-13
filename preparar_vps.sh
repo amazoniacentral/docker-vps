@@ -40,27 +40,6 @@ apt-mark hold docker-ce docker-ce-cli
 systemctl enable docker
 systemctl start docker
 
-echo "== Configurando Firewall =="
-# 1. Reseta as regras para evitar lixo (Opcional, mas recomendado)
-ufw --force reset
-
-# 2. Define a política padrão (Bloquear tudo que entra, permitir o que sai)
-ufw default deny incoming
-ufw default allow outgoing
-
-# 3. Abre as portas necessárias
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-
-# 4. Ativa o firewall de verdade (O --force vai antes do comando de ação no reset, no enable é apenas enable)
-ufw --force enable
-
-# 5. Aplica as alterações
-ufw reload
-
-echo "== Configurando Rede =="
-docker network create web 2>/dev/null || true
 
 echo "== Configurando ZRAM (Camada 1: RAM Comprimida) =="
 cat <<EOF > /etc/default/zramswap
