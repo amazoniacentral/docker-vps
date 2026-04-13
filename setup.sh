@@ -76,21 +76,13 @@ sysctl -p /etc/sysctl.d/99-fsilva.conf
 
 # --- FASE 5: CONFIGURAÇÃO DO FIREWALL (IPTABLES DOCKER-USER) ---
 echo "== Configurando Regras de Firewall Inteligentes =="
-# Criar chain DOCKER-USER se não existir e limpar
 iptables -N DOCKER-USER 2>/dev/null || iptables -F DOCKER-USER
-
-# 1. Permitir tráfego de conexões estabelecidas
 iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-# 2. Permitir interfaces internas
 iptables -A DOCKER-USER -i docker0 -j ACCEPT
 iptables -A DOCKER-USER -i br-+ -j ACCEPT
-# 3. Liberar portas Web
 iptables -A DOCKER-USER -p tcp --dport 80 -j ACCEPT
 iptables -A DOCKER-USER -p tcp --dport 443 -j ACCEPT
-# 4. Bloquear acesso externo ao resto (Protege DBs expostos)
 iptables -A DOCKER-USER -j DROP
-
-# Persistir regras
 netfilter-persistent save
 
 # --- FASE 6: DOCKER ENGINE V27 ---
@@ -110,7 +102,22 @@ if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
     systemctl enable --now docker
 fi
 
-# --- FASE 7: SSH E SEGURANÇA ---
+# --- FASE 7: CONFIGURAÇÃO GIT ---
+echo -e "\n${YELLOW}Deseja configurar o Git agora? (s/n)${RESET}"
+read -p "> " CONFIRM_GIT < /dev/tty
+if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
+    echo -n "Digite o Nome de Usuário Git: "
+    read -r GIT_USER < /dev/tty
+    echo -n "Digite o E-mail do Git: "
+    read -r GIT_EMAIL < /dev/tty
+    
+    git config --global user.name "$GIT_USER"
+    git config --global user.email "$GIT_EMAIL"
+    git config --global --add safe.directory '*'
+    echo -e "${GREEN}Git configurado para $GIT_USER ($GIT_EMAIL).${RESET}"
+fi
+
+# --- FASE 8: SSH E SEGURANÇA ---
 echo -e "\n${YELLOW}Deseja bloquear login por senha no SSH? (s/n)${RESET}"
 read -p "> " CONFIRM_SSH < /dev/tty
 if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
@@ -119,7 +126,10 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     systemctl restart ssh
 fi
 
-# --- FASE 8: LOG DE MONITORAMENTO FINAL (RAIO-X COMPLETO) ---
+echo "== Limpeza final =="
+apt autoremove -y && apt autoclean
+
+# --- FASE 9: LOG DE MONITORAMENTO FINAL (RAIO-X COMPLETO) ---
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
