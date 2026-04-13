@@ -25,8 +25,7 @@ echo -e "${CYAN}================================================================
 
 # --- PARTE 1: AUTOMÁTICA (SISTEMA E MEMÓRIA) ---
 
-echo "== Removendo conflitos e limpando APT =?"
-# Remove UFW que causa quebra de pacotes com iptables-persistent
+echo "== Removendo conflitos e limpando APT =="
 apt remove --purge -y ufw || true
 apt autoremove -y
 apt --fix-broken install -y
@@ -34,10 +33,16 @@ apt --fix-broken install -y
 echo "== Atualizando sistema =="
 apt update && apt upgrade -y
 
-echo "== Instalando pacotes básicos e persistência de firewall =="
-# Instalando netfilter-persistent primeiro para evitar erro de dependência
-apt install -y netfilter-persistent
-apt install -y ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc iptables-persistent
+echo "== Instalando pacotes básicos (MODO SILENCIOSO) =="
+# O segredo para não abrir a tela azul é o DEBIAN_FRONTEND=noninteractive
+# E o debconf-set-selections para aceitar o salvamento automático
+echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+
+export DEBIAN_FRONTEND=noninteractive
+apt install -y netfilter-persistent iptables-persistent \
+  ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc
+unset DEBIAN_FRONTEND
 
 # Ajustar Relógio
 timedatectl set-timezone America/Sao_Paulo
@@ -134,7 +139,6 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
 
     echo "== Aplicando Proteção Extra SSH (Bloqueio de Senhas) =="
     sed -i 's/.*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
-    # Garante que não existam duplicatas e que o UsePAM não interfira se necessário
     systemctl restart ssh
     
     echo -e "${GREEN}SSH CONFIGURADO. ACESSO POR SENHA BLOQUEADO.${RESET}"
@@ -148,7 +152,6 @@ echo "== Limpeza final =="
 apt autoremove -y && apt autoclean
 
 # --- PARTE 5: RELATÓRIO DE STATUS FINAL ---
-
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           STATUS GERAL DA VPS (PÓS-CONFIGURAÇÃO)${RESET}"
@@ -169,7 +172,7 @@ SSH_STATUS=$(grep "^PasswordAuthentication" /etc/ssh/sshd_config | awk '{print $
 printf "%-25s %-15s\n" "AUTENTICAÇÃO SSH:" "$STATUS_SSH"
 
 if command -v iptables >/dev/null; then
-    printf "%-25s ${GREEN}%-15s${RESET}\n" "IPTABLES-PERSISTENT:" "INSTALADO"
+    printf "%-25s ${GREEN}%-15s${RESET}\n" "IPTABLES-PERSISTENT:" "INSTALADO (MODO SILENCIOSO)"
 fi
 
 echo -e "\n${CYAN}DOCKER E GIT:${RESET}"
