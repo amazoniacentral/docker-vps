@@ -2,7 +2,7 @@
 set -e
 
 # =================================================================
-# SCRIPT DE SETUP E MONITORAMENTO INTEGRADO - FSilva Cloud
+# SETUP ABSOLUTO, FIREWALL E MONITORAMENTO - FSilva Cloud
 # =================================================================
 
 # 1. Verificar se é root
@@ -20,13 +20,13 @@ RESET='\033[0m'
 
 clear
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           INICIANDO SETUP E OTIMIZAÇÃO DA VPS${RESET}"
+echo -e "${YELLOW}           INICIANDO SETUP INTEGRADO (SISTEMA + FIREWALL)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
 # --- FASE 1: DEPENDÊNCIAS DE SISTEMA ---
-echo "== Instalando utilitários essenciais (psmisc, util-linux, net-tools) =="
+echo "== Instalando utilitários essenciais =="
 apt-get update
-apt-get install -y psmisc util-linux procps sed grep coreutils curl jq bc
+apt-get install -y psmisc util-linux procps sed grep coreutils curl jq bc net-tools
 
 # --- FASE 2: DESBLOQUEIO E LIMPEZA ---
 echo "== Verificando travas de processos (APT/DPKG) =="
@@ -35,7 +35,7 @@ fuser -vki /var/lib/apt/lists/lock || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
 dpkg --configure -a
 
-# --- FASE 3: INSTALAÇÃO SILENCIOSA ---
+# --- FASE 3: INSTALAÇÃO SILENCIOSA E BASE ---
 echo "== Configurando ambiente não-interativo =="
 echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
 echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
@@ -54,7 +54,7 @@ timedatectl set-timezone America/Sao_Paulo
 htpdate -s -t google.com
 
 # --- FASE 4: PERFORMANCE (ZRAM & SWAP) ---
-echo "== Configurando ZRAM (Camada 1: 50% RAM) =="
+echo "== Configurando Camadas de Memória (ZRAM + SWAP) =="
 cat <<EOF > /etc/default/zramswap
 ALGO=zstd
 PERCENT=50
@@ -62,7 +62,6 @@ PRIORITY=100
 EOF
 systemctl restart zramswap
 
-echo "== Configurando Swapfile (Camada 2: 4GB Disco) =="
 if [ ! -f /swapfile ]; then
   fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
   chmod 600 /swapfile
@@ -72,21 +71,37 @@ sed -i '/\/swapfile/d' /etc/fstab
 echo "/swapfile none swap sw,pri=10 0 0" >> /etc/fstab
 swapon -p 10 /swapfile || true
 
-echo "== Otimizando Kernel (Swappiness) =="
-sed -i '/vm.swappiness/d' /etc/sysctl.conf
-echo "vm.swappiness=10" >> /etc/sysctl.conf
-sysctl -p
+echo "vm.swappiness=10" > /etc/sysctl.d/99-fsilva.conf
+sysctl -p /etc/sysctl.d/99-fsilva.conf
 
-# --- FASE 5: DOCKER V27 ---
-echo -e "\n${YELLOW}Deseja instalar o Docker Engine v27? (s/n)${RESET}"
+# --- FASE 5: CONFIGURAÇÃO DO FIREWALL (IPTABLES DOCKER-USER) ---
+echo "== Configurando Regras de Firewall Inteligentes =="
+# Criar chain DOCKER-USER se não existir e limpar
+iptables -N DOCKER-USER 2>/dev/null || iptables -F DOCKER-USER
+
+# 1. Permitir tráfego de conexões estabelecidas
+iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+# 2. Permitir interfaces internas
+iptables -A DOCKER-USER -i docker0 -j ACCEPT
+iptables -A DOCKER-USER -i br-+ -j ACCEPT
+# 3. Liberar portas Web
+iptables -A DOCKER-USER -p tcp --dport 80 -j ACCEPT
+iptables -A DOCKER-USER -p tcp --dport 443 -j ACCEPT
+# 4. Bloquear acesso externo ao resto (Protege DBs expostos)
+iptables -A DOCKER-USER -j DROP
+
+# Persistir regras
+netfilter-persistent save
+
+# --- FASE 6: DOCKER ENGINE V27 ---
+echo -e "\n${YELLOW}Deseja instalar/garantir o Docker Engine v27? (s/n)${RESET}"
 read -p "> " INSTALL_DOCKER < /dev/tty
 if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
-    echo "== Configurando Repositório Docker =="
+    echo "== Configurando Docker v27.3.1 =="
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt-get update
-    echo "== Instalando Docker v27.3.1 =="
     apt-get install -y --allow-downgrades \
       docker-ce=5:27.3.1-1~debian.12~bookworm \
       docker-ce-cli=5:27.3.1-1~debian.12~bookworm \
@@ -95,21 +110,8 @@ if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
     systemctl enable --now docker
 fi
 
-# --- FASE 6: CONFIGURAÇÃO GIT ---
-echo -e "\n${YELLOW}Deseja configurar o Git agora? (s/n)${RESET}"
-read -p "> " CONFIRM_GIT < /dev/tty
-if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
-    echo -n "Digite o Nome de Usuário Git: "
-    read -r GIT_USER < /dev/tty
-    echo -n "Digite o E-mail do Git: "
-    read -r GIT_EMAIL < /dev/tty
-    git config --global user.name "$GIT_USER"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global --add safe.directory '*'
-fi
-
-# --- FASE 7: SEGURANÇA SSH ---
-echo -e "\n${YELLOW}Deseja BLOQUEAR acesso por senha no SSH? (s/n)${RESET}"
+# --- FASE 7: SSH E SEGURANÇA ---
+echo -e "\n${YELLOW}Deseja bloquear login por senha no SSH? (s/n)${RESET}"
 read -p "> " CONFIRM_SSH < /dev/tty
 if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
@@ -117,22 +119,49 @@ if [[ "$CONFIRM_SSH" =~ ^[Ss]$ ]]; then
     systemctl restart ssh
 fi
 
-# --- FASE 8: MONITORAMENTO INTEGRADO NO LOG FINAL ---
+# --- FASE 8: LOG DE MONITORAMENTO FINAL (RAIO-X COMPLETO) ---
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           STATUS GERAL E HARDWARE DA VPS (PÓS-SETUP)${RESET}"
+echo -e "${YELLOW}           STATUS GERAL E HARDWARE DA VPS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
 UPTIME_ALIVE=$(uptime -p | sed 's/up //')
 OS_VERSION=$(grep "PRETTY_NAME" /etc/os-release | cut -d'"' -f2)
+KERNEL=$(uname -r)
 CPU_MODEL=$(lscpu | grep "Model name" | cut -d':' -f2 | xargs)
+PKGS=$(dpkg -l | grep -c "^ii")
 CURRENT_DATE=$(date "+%d/%m/%Y %H:%M:%S")
 
-echo -e "SISTEMA:                  $OS_VERSION"
-echo -e "MODELO CPU:               $CPU_MODEL"
-echo -e "TEMPO DE VIDA (UP):       ${GREEN}$UPTIME_ALIVE${RESET}"
-echo -e "DATA/HORA ATUAL:          $CURRENT_DATE"
+printf "%-25s %-15s\n" "SISTEMA OPERACIONAL:" "$OS_VERSION"
+printf "%-25s %-15s\n" "KERNEL:" "$KERNEL"
+printf "%-25s %-15s\n" "MODELO CPU:" "$CPU_MODEL"
+printf "%-25s %-15s\n" "PACOTES INSTALADOS:" "$PKGS"
+printf "%-25s ${GREEN}%-15s${RESET}\n" "TEMPO DE VIDA (UP):" "$UPTIME_ALIVE"
+printf "%-25s %-15s\n" "DATA/HORA ATUAL:" "$CURRENT_DATE"
+
+echo -e "\n${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}           SEGURANÇA E FIREWALL (IPTABLES DOCKER-USER)${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+
+if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
+    printf "%-25s ${GREEN}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "CHAVE (OK)"
+else
+    printf "%-25s ${RED}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "SENHA (VULNERÁVEL)"
+fi
+
+printf "%-25s " "IPTABLES (DOCKER-USER):"
+if iptables -L DOCKER-USER -n >/dev/null 2>&1; then
+    RULE_COUNT=$(iptables -L DOCKER-USER -n | wc -l)
+    if [ "$RULE_COUNT" -gt 2 ]; then
+        echo -e "${GREEN}ATIVO (PROTEGENDO DOCKER)${RESET}"
+        iptables -L DOCKER-USER -n --line-numbers | sed 's/^/  /'
+    else
+        echo -e "${YELLOW}SEM REGRAS DE FILTRO${RESET}"
+    fi
+else
+    echo -e "${RED}CORRENTE NÃO ENCONTRADA${RESET}"
+fi
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           REDES E CONECTIVIDADE DA VPS${RESET}"
@@ -141,80 +170,70 @@ echo -e "${CYAN}================================================================
 IPV4_PUB=$(curl -s4 icanhazip.com || echo "N/A")
 printf "%-25s ${YELLOW}%-15s${RESET}\n" "IP PÚBLICO (IPv4):" "$IPV4_PUB"
 
-echo -e "\nInterfaces de Rede e Docker:"
-printf "%-18s %-15s %-15s\n" "INTERFACE" "IP" "REDE DOCKER"
+echo -e "\n${CYAN}Interfaces e Redes Docker:${RESET}"
+printf "%-18s %-15s %-12s %-12s %-15s\n" "INTERFACE" "IP" "RECEBIDO" "ENVIADO" "DOCKER NET"
 for dev in $(ls /sys/class/net/ | grep -v "lo"); do
     ip_addr=$(ip -4 addr show $dev | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1 || echo "-")
+    rx=$(cat /sys/class/net/$dev/statistics/rx_bytes 2>/dev/null || echo 0)
+    tx=$(cat /sys/class/net/$dev/statistics/tx_bytes 2>/dev/null || echo 0)
+    rx_mb=$(awk "BEGIN {printf \"%.2f MB\", $rx/1024/1024}")
+    tx_mb=$(awk "BEGIN {printf \"%.2f MB\", $tx/1024/1024}")
+    
     docker_net="-"
-    if [[ $dev == br-* ]]; then
-        net_id=$(echo $dev | cut -d'-' -f2)
-        docker_net=$(docker network ls --filter id=$net_id --format "{{.Name}}" | head -n1)
-    elif [[ $dev == "docker0" ]]; then docker_net="bridge (def)"
-    elif [[ $dev == eth* ]]; then docker_net="WAN"
-    fi
-    printf "%-18s %-15s %-15s\n" "$dev" "$ip_addr" "$docker_net"
+    [[ $dev == br-* ]] && docker_net=$(docker network ls --filter id=${dev#br-} --format "{{.Name}}")
+    [[ $dev == "docker0" ]] && docker_net="bridge"
+    [[ $dev == eth* ]] && docker_net="Internet/WAN"
+    
+    printf "%-18s %-15s %-12s %-12s %-15s\n" "$dev" "$ip_addr" "$rx_mb" "$tx_mb" "$docker_net"
 done
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           RECURSOS (MEMÓRIA, I/O E DISCO)${RESET}"
+echo -e "${YELLOW}           RECURSOS DA VPS (MEMÓRIA E DISCO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
 RAM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
 RAM_AVAIL=$(free -m | awk '/Mem:/ {print $7}')
 RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100}")
-IOWAIT=$(top -bn1 | grep "Cpu(s)" | awk '{for(i=1;i<=NF;i++) if($i=="wa") print $(i-1)}' | head -n1 | tr ',' '.')
 
-printf "%-25s %-15s\n" "RAM USO %:" "$RAM_PERC%"
-echo -ne "CPU I/O WAIT (DISCO):     ${YELLOW}${IOWAIT}%${RESET}\n"
-df -h / | awk 'NR==2 {printf "ESPAÇO EM DISCO (/):      %s usado (%s disp)\n", $5, $4}'
+ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
+DISK_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep -v "zram0" | grep -v "NAME" || echo "disco 0 0")
 
-echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           MAPEAMENTO DE CONTAINERS E VOLUMES${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
+ZRAM_TOTAL_MB=$(echo $ZRAM_DATA | awk '{printf "%.0f", $2/1024/1024}')
+DISK_TOTAL_MB=$(echo $DISK_DATA | awk '{sum+=$2} END {printf "%.0f", sum/1024/1024}')
 
-if docker ps -a >/dev/null 2>&1; then
-    printf "%-22s %-15s %-12s %-25s\n" "NOME" "IP INTERNO" "STATUS" "REDES"
-    for cid in $(docker ps -q); do
-        NAME=$(docker inspect -f '{{.Name}}' $cid | sed 's/\///')
-        STAT=$(docker inspect -f '{{.State.Status}}' $cid)
-        IPS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' $cid)
-        NETS=$(docker inspect -f '{{range $p, $conf := .NetworkSettings.Networks}}{{$p}} {{end}}' $cid)
-        printf "%-22s %-15s %-12s %-25s\n" "$NAME" "${IPS%% *}" "$STAT" "${NETS%% *}"
-    done
-    
-    echo -e "\n${CYAN}Uso de Disco por Volumes:${RESET}"
-    docker volume ls -q | head -n 5 | while read vol; do
-        MOUNT=$(docker volume inspect --format '{{ .Mountpoint }}' "$vol")
-        SIZE=$(du -sh "$MOUNT" 2>/dev/null | awk '{print $1}' || echo "N/A")
-        printf " - %-35s %-10s\n" "$vol" "$SIZE"
-    done
-else
-    echo -e "${RED}Docker não está rodando ou nenhum container ativo.${RESET}"
-fi
+printf "${CYAN}%-15s %-12s %-12s %-12s${RESET}\n" "TIPO" "TOTAL" "DISPONÍVEL" "USO %"
+printf "%-15s %-12s %-12s %-12s\n" "RAM (MB)" "$RAM_TOTAL" "$RAM_AVAIL" "$RAM_PERC%"
+printf "%-15s %-12s %-12s %-12s\n" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "Ativo"
+printf "%-15s %-12s %-12s %-12s\n" "SWAP (MB)" "$DISK_TOTAL_MB" "-" "Ativo"
+
+echo -e "\n${CYAN}Uso de Disco por Volume (Docker):${RESET}"
+docker volume ls -q | while read vol; do
+    SIZE=$(du -sh $(docker volume inspect --format '{{ .Mountpoint }}' "$vol") 2>/dev/null | awk '{print $1}')
+    printf " - %-40s %-15s\n" "$vol" "$SIZE"
+done
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           SEGURANÇA, SSL E SAÚDE${RESET}"
+echo -e "${YELLOW}           MAPEAMENTO E SAÚDE DOS CONTAINERS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Verificação SSH
-if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
-    echo -e "AUTENTICAÇÃO SSH:         ${GREEN}PROTEGIDO (SOMENTE CHAVE)${RESET}"
-else
-    echo -e "AUTENTICAÇÃO SSH:         ${RED}SENHA ATIVA (VULNERÁVEL)${RESET}"
-fi
+printf "%-22s %-18s %-15s %-12s\n" "NOME" "HOSTNAME" "IP INTERNO" "STATUS"
+for cid in $(docker ps -q); do
+    NAME=$(docker inspect -f '{{.Name}}' $cid | sed 's/\///')
+    HOST=$(docker inspect -f '{{.Config.Hostname}}' $cid)
+    STAT=$(docker inspect -f '{{.State.Status}}' $cid)
+    IPS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $cid)
+    printf "%-22s %-18s %-15s %-12s\n" "$NAME" "$HOST" "$IPS" "$STAT"
+done
 
-# ACME / SSL
 ACME_FILE="/opt/fsilva-cloud/proxy/acme.json"
 if [ -f "$ACME_FILE" ]; then
     CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
-    echo -e "CERTIFICADOS SSL:         ${GREEN}$CERT_COUNT Ativos${RESET}"
-else
-    echo -e "ACME.JSON:                ${YELLOW}Não encontrado${RESET}"
+    echo -e "\n${GREEN}CERTIFICADOS SSL TRAEFIK:${RESET} $CERT_COUNT Ativos"
 fi
 
-CRASHING=$(docker ps -a | grep -c "restarting" || echo 0)
-echo -e "CONTAINERS EM ERRO:       ${RED}$CRASHING${RESET}"
+CRASHING=$(docker ps -a | grep -c "restarting")
+printf "\n%-25s ${RED}%-15s${RESET}\n" "CONTAINERS EM ERRO:" "$CRASHING"
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${GREEN}             SETUP E MONITORAMENTO FINALIZADOS!${RESET}"
+echo -e "${GREEN}             SETUP ABSOLUTO FINALIZADO COM SUCESSO!${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
