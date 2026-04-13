@@ -160,7 +160,13 @@ else
     printf "%-25s ${RED}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "SENHA (VULNERÁVEL)"
 fi
 
-printf "%-25s " "IPTABLES (DOCKER-USER):"
+# Git Info no Log
+G_NAME=$(git config --global user.name || echo "Não Configurado")
+G_EMAIL=$(git config --global user.email || echo "Não Configurado")
+printf "%-25s ${GREEN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_NAME"
+printf "%-25s ${GREEN}%-15s${RESET}\n" "E-MAIL GIT:" "$G_EMAIL"
+
+printf "\n%-25s " "IPTABLES (DOCKER-USER):"
 if iptables -L DOCKER-USER -n >/dev/null 2>&1; then
     RULE_COUNT=$(iptables -L DOCKER-USER -n | wc -l)
     if [ "$RULE_COUNT" -gt 2 ]; then
