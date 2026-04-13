@@ -23,14 +23,14 @@ echo -e "${CYAN}================================================================
 echo -e "${YELLOW}           INICIANDO SETUP E OTIMIZAÇÃO DA VPS${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# --- FASE 1: INSTALAÇÃO DE DEPENDÊNCIAS DE SISTEMA (CORREÇÃO) ---
-echo "== Instalando utilitários de processo e sistema =="
-apt update
-apt install -y psmisc util-linux procps
+# --- FASE 1: INSTALAÇÃO IMEDIATA DE DEPENDÊNCIAS DE COMANDO ---
+echo "== Instalando utilitários essenciais (psmisc, util-linux) =="
+apt-get update
+apt-get install -y psmisc util-linux procps sed grep coreutils
 
 # --- FASE 2: DESBLOQUEIO E LIMPEZA ---
 echo "== Verificando travas de processos (APT/DPKG) =="
-# Agora o fuser vai funcionar
+# Agora o fuser existe e vai rodar
 fuser -vki /var/lib/dpkg/lock-frontend || true
 fuser -vki /var/lib/apt/lists/lock || true
 rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
@@ -44,11 +44,11 @@ echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debcon
 export DEBIAN_FRONTEND=noninteractive
 
 echo "== Atualizando Repositórios e Sistema =="
-apt upgrade -y
+apt-get upgrade -y
 
 echo "== Instalando pacotes base =="
-# Removido 'lscpu' (é comando do util-linux) e adicionado as ferramentas corretas
-apt install -y netfilter-persistent iptables-persistent \
+# lscpu já foi instalado pelo util-linux acima
+apt-get install -y netfilter-persistent iptables-persistent \
   ca-certificates curl gnupg lsb-release htop unzip zram-tools htpdate fail2ban tree bc jq git
 
 # Ajustar Relógio
@@ -87,9 +87,9 @@ if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    apt update
+    apt-get update
     echo "== Instalando Docker v27.3.1 =="
-    apt install -y --allow-downgrades \
+    apt-get install -y --allow-downgrades \
       docker-ce=5:27.3.1-1~debian.12~bookworm \
       docker-ce-cli=5:27.3.1-1~debian.12~bookworm \
       containerd.io docker-buildx-plugin docker-compose-plugin
@@ -130,7 +130,7 @@ echo -e "${CYAN}================================================================
 echo -e "${YELLOW}           STATUS GERAL DA VPS (PÓS-CONFIGURAÇÃO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Coleta de Dados (Usando caminhos absolutos para evitar command not found)
+# Coleta de Dados
 UPTIME_ALIVE=$(uptime -p | sed 's/up //')
 OS_VERSION=$(grep "PRETTY_NAME" /etc/os-release | cut -d'"' -f2)
 KERNEL=$(uname -r)
