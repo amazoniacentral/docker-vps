@@ -154,14 +154,12 @@ echo -e "\n${CYAN}==============================================================
 echo -e "${YELLOW}           IDENTIDADE E SEGURANÇA (GIT & SSH)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Verificação SSH
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config; then
     printf "%-25s ${GREEN}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "CHAVE (OK)"
 else
     printf "%-25s ${RED}%-15s${RESET}\n" "AUTENTICAÇÃO SSH:" "SENHA (VULNERÁVEL)"
 fi
 
-# Informações do Git
 G_USER=$(git config --global user.name || echo "N/A")
 G_MAIL=$(git config --global user.email || echo "N/A")
 printf "%-25s ${CYAN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_USER"
@@ -208,20 +206,38 @@ echo -e "\n${CYAN}==============================================================
 echo -e "${YELLOW}           RECURSOS DA VPS (MEMÓRIA E DISCO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
+# RAM
 RAM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
 RAM_AVAIL=$(free -m | awk '/Mem:/ {print $7}')
 RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100}")
 
+# ZRAM
 ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
-DISK_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep -v "zram0" | grep -v "NAME" || echo "disco 0 0")
+ZRAM_SIZE_B=$(echo $ZRAM_DATA | awk '{print $2}')
+ZRAM_USED_B=$(echo $ZRAM_DATA | awk '{print $3}')
+ZRAM_TOTAL_MB=$(awk "BEGIN {printf \"%.0f\", $ZRAM_SIZE_B/1024/1024}")
+ZRAM_PERC="0.00"
+[ "$ZRAM_SIZE_B" -gt 0 ] && ZRAM_PERC=$(awk "BEGIN {printf \"%.2f\", ($ZRAM_USED_B/$ZRAM_SIZE_B)*100}")
 
-ZRAM_TOTAL_MB=$(echo $ZRAM_DATA | awk '{printf "%.0f", $2/1024/1024}')
-DISK_TOTAL_MB=$(echo $DISK_DATA | awk '{sum+=$2} END {printf "%.0f", sum/1024/1024}')
+# SWAP DISCO
+DISK_SWAP_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep -v "zram0" | grep -v "NAME" || echo "disco 0 0")
+DSWAP_SIZE_B=$(echo $DISK_SWAP_DATA | awk '{sum+=$2} END {print sum}')
+DSWAP_USED_B=$(echo $DISK_SWAP_DATA | awk '{sum+=$3} END {print sum}')
+DSWAP_TOTAL_MB=$(awk "BEGIN {printf \"%.0f\", $DSWAP_SIZE_B/1024/1024}")
+DSWAP_PERC="0.00"
+[ "$DSWAP_SIZE_B" -gt 0 ] && DSWAP_PERC=$(awk "BEGIN {printf \"%.2f\", ($DSWAP_USED_B/$DSWAP_SIZE_B)*100}")
+
+# DISCO GERAL (/)
+ROOT_TOTAL=$(df -h / | awk 'NR==2 {print $2}')
+ROOT_USED=$(df -h / | awk 'NR==2 {print $3}')
+ROOT_AVAIL=$(df -h / | awk 'NR==2 {print $4}')
+ROOT_PERC=$(df -h / | awk 'NR==2 {print $5}')
 
 printf "${CYAN}%-15s %-12s %-12s %-12s${RESET}\n" "TIPO" "TOTAL" "DISPONÍVEL" "USO %"
 printf "%-15s %-12s %-12s %-12s\n" "RAM (MB)" "$RAM_TOTAL" "$RAM_AVAIL" "$RAM_PERC%"
-printf "%-15s %-12s %-12s %-12s\n" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "Ativo"
-printf "%-15s %-12s %-12s %-12s\n" "SWAP (MB)" "$DISK_TOTAL_MB" "-" "Ativo"
+printf "%-15s %-12s %-12s %-12s\n" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "$ZRAM_PERC%"
+printf "%-15s %-12s %-12s %-12s\n" "SWAP (MB)" "$DSWAP_TOTAL_MB" "-" "$DSWAP_PERC%"
+printf "%-15s %-12s %-12s %-12s\n" "DISCO (/)" "$ROOT_TOTAL" "$ROOT_AVAIL" "$ROOT_PERC"
 
 echo -e "\n${CYAN}Uso de Disco por Volume (Docker):${RESET}"
 docker volume ls -q | while read vol; do
@@ -242,7 +258,7 @@ for cid in $(docker ps -q); do
     printf "%-22s %-18s %-15s %-12s\n" "$NAME" "$HOST" "$IPS" "$STAT"
 done
 
-ACME_FILE="/opt/sysctl-cloud/proxy/acme.json"
+ACME_FILE="/opt/fsilva-cloud/proxy/acme.json"
 if [ -f "$ACME_FILE" ]; then
     CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
     echo -e "\n${GREEN}CERTIFICADOS SSL TRAEFIK:${RESET} $CERT_COUNT Ativos"
