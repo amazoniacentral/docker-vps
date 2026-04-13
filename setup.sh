@@ -71,8 +71,8 @@ sed -i '/\/swapfile/d' /etc/fstab
 echo "/swapfile none swap sw,pri=10 0 0" >> /etc/fstab
 swapon -p 10 /swapfile || true
 
-echo "vm.swappiness=10" > /etc/sysctl.d/99-fsilva.conf
-sysctl -p /etc/sysctl.d/99-fsilva.conf
+echo "vm.swappiness=10" > /etc/sysctl.d/sysctl.conf
+sysctl -p /etc/sysctl.d/sysctl.conf
 
 # --- FASE 5: CONFIGURAÇÃO DO FIREWALL (IPTABLES DOCKER-USER) ---
 echo "== Configurando Regras de Firewall Inteligentes =="
@@ -242,7 +242,7 @@ for cid in $(docker ps -q); do
     printf "%-22s %-18s %-15s %-12s\n" "$NAME" "$HOST" "$IPS" "$STAT"
 done
 
-ACME_FILE="/opt/fsilva-cloud/proxy/acme.json"
+ACME_FILE="/opt/sysctl-cloud/proxy/acme.json"
 if [ -f "$ACME_FILE" ]; then
     CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
     echo -e "\n${GREEN}CERTIFICADOS SSL TRAEFIK:${RESET} $CERT_COUNT Ativos"
