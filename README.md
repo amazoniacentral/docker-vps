@@ -16,16 +16,19 @@ O script executa uma configuração de "Endurecimento" (Hardening) e Otimizaçã
 * **Versão Fixa:** Instala especificamente a versão `27.3.1` e aplica um `apt-mark hold` para evitar atualizações automáticas que possam causar downtime imprevisto.
 * **Habilitação:** Configura o serviço para iniciar automaticamente com o sistema.
 
-### 3. Segurança e Firewall (UFW & Fail2Ban)
+### 3. Segurança e Firewall (iptables DOCKER-USER)
 * **Política Restritiva:** Reseta o firewall e define bloqueio total de entrada por padrão.
 * **Portas Abertas:** Libera apenas o essencial: **22/TCP (SSH)**, **80/TCP (HTTP)** e **443/TCP (HTTPS)**.
-* **Fail2Ban:** Ativado para mitigar ataques de força bruta no acesso SSH.
+* **Fail2Ban:** Para ativar e mitigar ataques de força bruta no acesso SSH use o comando abaixo.
+```bash 
+apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/failb2.sh | sudo bash
+```
 
 ### 4. Gestão de Memória Híbrida (Expansão de RAM)
 Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho muito superiores à RAM física nominal:
-* **ZRAM (Camada 1):** Cria um dispositivo comprimido com **ZSTD** usando 50% da RAM física. Prioridade máxima por ser extremamente rápida.
-* **SWAP de Disco (Camada 2):** Cria um arquivo de reserva de **4GB** no SSD.
-* **Ajuste de Swappiness:** Define o kernel para `vm.swappiness=10`, garantindo que o sistema priorize a RAM/ZRAM e só use o disco em caso de necessidade extrema.
+* **ZRAM (Camada 1):** Cria um dispositivo comprimido com **ZSTD** usando 30% da RAM física `PERCENT=30`. Prioridade máxima `PRIORITY=100` por ser extremamente rápida e compressão ultra rápida `ALGO=zstd`.
+* **SWAP de Disco (Camada 2):** Cria um arquivo de reserva de **4GB** no SSD `fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096`.
+* **Ajuste de Swappiness:** Define o kernel para `vm.swappiness=60` com prioridade `pri=50`, garantindo que o sistema priorize a RAM/ZRAM e só use o disco em caso de necessidade.
 
 ### 5. Orquestração
 * **Rede Docker:** Cria a rede externa `web` para comunicação isolada entre containers.
@@ -34,16 +37,11 @@ Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho 
 ## 🚀 Instalação Rápida (One-Liner)
 
 Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para configurar toda a infraestrutura automaticamente:
-
-<!--- Baixando para preparar-->
-<!--```bash-->
-<!--apt update && apt install -y curl && curl -L https://github.com/amazoniacentral/docker-vps/archive/main.tar.gz | tar xz && cd docker-vps-main && sudo bash preparar_vps.sh-->
-<!--```-->
-
-- Use este comando para preparar a VPS
+- Preparar VPS
 ```bash
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/setup.sh | sudo bash
 ```
+
 
 - Firewall de segurança
 As portas 22 (ssh), 80 (http) e 443 (https) foram configuradas no comando acima junto com a preparação da VPS.
