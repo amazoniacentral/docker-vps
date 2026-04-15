@@ -55,7 +55,6 @@ htpdate -s -t google.com
 
 # --- FASE 4: PERFORMANCE (ZRAM & SWAP) ---
 echo "== Configurando Camadas de Memória (ZRAM + SWAP) =="
-# Ajustado para 30% para sobrar RAM real para o build do React
 cat <<EOF > /etc/default/zramswap
 ALGO=zstd
 PERCENT=30
@@ -69,12 +68,9 @@ if [ ! -f /swapfile ]; then
   mkswap /swapfile
 fi
 sed -i '/\/swapfile/d' /etc/fstab
-# Prioridade 50 para o disco permite transbordamento antes do crash
 echo "/swapfile none swap sw,pri=50 0 0" >> /etc/fstab
-swapoff /swapfile 2>/dev/null || true
 swapon -p 50 /swapfile || true
 
-# Swappiness 60 é a verdade absoluta para builds em VPS de 2GB
 echo "vm.swappiness=60" > /etc/sysctl.d/sysctl.conf
 sysctl -p /etc/sysctl.d/sysctl.conf
 
@@ -170,6 +166,43 @@ printf "%-25s ${CYAN}%-15s${RESET}\n" "USUÁRIO GIT:" "$G_USER"
 printf "%-25s ${CYAN}%-15s${RESET}\n" "E-MAIL GIT:" "$G_MAIL"
 
 echo -e "\n${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}           FIREWALL E REDE (IPTABLES DOCKER-USER)${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+
+printf "%-25s " "IPTABLES (DOCKER-USER):"
+if iptables -L DOCKER-USER -n >/dev/null 2>&1; then
+    RULE_COUNT=$(iptables -L DOCKER-USER -n | wc -l)
+    if [ "$RULE_COUNT" -gt 2 ]; then
+        echo -e "${GREEN}ATIVO (PROTEGENDO DOCKER)${RESET}"
+        iptables -L DOCKER-USER -n --line-numbers | sed 's/^/  /'
+    else
+        echo -e "${YELLOW}SEM REGRAS DE FILTRO${RESET}"
+    fi
+else
+    echo -e "${RED}CORRENTE NÃO ENCONTRADA${RESET}"
+fi
+
+IPV4_PUB=$(curl -s4 icanhazip.com || echo "N/A")
+printf "\n%-25s ${YELLOW}%-15s${RESET}\n" "IP PÚBLICO (IPv4):" "$IPV4_PUB"
+
+echo -e "\n${CYAN}Interfaces e Redes Docker:${RESET}"
+printf "%-18s %-15s %-12s %-12s %-15s\n" "INTERFACE" "IP" "RECEBIDO" "ENVIADO" "DOCKER NET"
+for dev in $(ls /sys/class/net/ | grep -v "lo"); do
+    ip_addr=$(ip -4 addr show $dev | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -n1 || echo "-")
+    rx=$(cat /sys/class/net/$dev/statistics/rx_bytes 2>/dev/null || echo 0)
+    tx=$(cat /sys/class/net/$dev/statistics/tx_bytes 2>/dev/null || echo 0)
+    rx_mb=$(awk "BEGIN {printf \"%.2f MB\", $rx/1024/1024}")
+    tx_mb=$(awk "BEGIN {printf \"%.2f MB\", $tx/1024/1024}")
+    
+    docker_net="-"
+    [[ $dev == br-* ]] && docker_net=$(docker network ls --filter id=${dev#br-} --format "{{.Name}}")
+    [[ $dev == "docker0" ]] && docker_net="bridge"
+    [[ $dev == eth* ]] && docker_net="Internet/WAN"
+    
+    printf "%-18s %-15s %-12s %-12s %-15s\n" "$dev" "$ip_addr" "$rx_mb" "$tx_mb" "$docker_net"
+done
+
+echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           RECURSOS DA VPS (MEMÓRIA E DISCO)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
@@ -205,6 +238,34 @@ printf "%-15s %-12s %-12s %-12s\n" "RAM (MB)" "$RAM_TOTAL" "$RAM_AVAIL" "$RAM_PE
 printf "%-15s %-12s %-12s %-12s\n" "ZRAM (MB)" "$ZRAM_TOTAL_MB" "-" "$ZRAM_PERC%"
 printf "%-15s %-12s %-12s %-12s\n" "SWAP (MB)" "$DSWAP_TOTAL_MB" "-" "$DSWAP_PERC%"
 printf "%-15s %-12s %-12s %-12s\n" "DISCO (/)" "$ROOT_TOTAL" "$ROOT_AVAIL" "$ROOT_PERC"
+
+echo -e "\n${CYAN}Uso de Disco por Volume (Docker):${RESET}"
+docker volume ls -q | while read vol; do
+    SIZE=$(du -sh $(docker volume inspect --format '{{ .Mountpoint }}' "$vol") 2>/dev/null | awk '{print $1}')
+    printf " - %-40s %-15s\n" "$vol" "$SIZE"
+done
+
+echo -e "\n${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}           MAPEAMENTO E SAÚDE DOS CONTAINERS${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+
+printf "%-22s %-18s %-15s %-12s\n" "NOME" "HOSTNAME" "IP INTERNO" "STATUS"
+for cid in $(docker ps -q); do
+    NAME=$(docker inspect -f '{{.Name}}' $cid | sed 's/\///')
+    HOST=$(docker inspect -f '{{.Config.Hostname}}' $cid)
+    STAT=$(docker inspect -f '{{.State.Status}}' $cid)
+    IPS=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $cid)
+    printf "%-22s %-18s %-15s %-12s\n" "$NAME" "$HOST" "$IPS" "$STAT"
+done
+
+ACME_FILE="/opt/fsilva-cloud/proxy/acme.json"
+if [ -f "$ACME_FILE" ]; then
+    CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
+    echo -e "\n${GREEN}CERTIFICADOS SSL TRAEFIK:${RESET} $CERT_COUNT Ativos"
+fi
+
+CRASHING=$(docker ps -a | grep -c "restarting")
+printf "\n%-25s ${RED}%-15s${RESET}\n" "CONTAINERS EM ERRO:" "$CRASHING"
 
 echo -e "\n${CYAN}================================================================${RESET}"
 echo -e "${GREEN}             SETUP ABSOLUTO FINALIZADO COM SUCESSO!${RESET}"
