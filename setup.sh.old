@@ -55,30 +55,23 @@ htpdate -s -t google.com
 
 # --- FASE 4: PERFORMANCE (ZRAM & SWAP) ---
 echo "== Configurando Camadas de Memória (ZRAM + SWAP) =="
-
-# ZRAM conservadora para sobrar RAM bruta para o processo de Build
 cat <<EOF > /etc/default/zramswap
 ALGO=zstd
-PERCENT=30
+PERCENT=50
 PRIORITY=100
 EOF
 systemctl restart zramswap
 
-# Swap em disco de 4GB para garantir que o build nunca morra por falta de espaço
 if [ ! -f /swapfile ]; then
   fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
   chmod 600 /swapfile
   mkswap /swapfile
 fi
-
-# Ajuste de prioridade: ZRAM (100) é usada primeiro, mas Swap (50) entra logo em seguida
 sed -i '/\/swapfile/d' /etc/fstab
-echo "/swapfile none swap sw,pri=50 0 0" >> /etc/fstab
-swapoff /swapfile 2>/dev/null || true
-swapon -p 50 /swapfile || true
+echo "/swapfile none swap sw,pri=10 0 0" >> /etc/fstab
+swapon -p 10 /swapfile || true
 
-# Swappiness em 60 para forçar o descarte de processos inúteis para o swap durante o build
-echo "vm.swappiness=60" > /etc/sysctl.d/sysctl.conf
+echo "vm.swappiness=10" > /etc/sysctl.d/sysctl.conf
 sysctl -p /etc/sysctl.d/sysctl.conf
 
 # --- FASE 5: CONFIGURAÇÃO DO FIREWALL (IPTABLES DOCKER-USER) ---
@@ -98,7 +91,7 @@ read -p "> " INSTALL_DOCKER < /dev/tty
 if [[ "$INSTALL_DOCKER" =~ ^[Ss]$ ]]; then
     echo "== Configurando Docker v27.3.1 =="
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/docker/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg --yes
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
     apt-get update
     apt-get install -y --allow-downgrades \
