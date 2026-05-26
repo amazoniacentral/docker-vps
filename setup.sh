@@ -28,34 +28,54 @@ BASE_URL="https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/fase
 
 # --- EXECUÇÃO DAS FASES REMOTAS ---
 
-echo "== Carregando Fase 1: Dependências do Sistema =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 1: Dependências do Sistema ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase1.sh")
 
-echo "== Carregando Fase 2: Desbloqueio e Limpeza =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 2: Desbloqueio e Limpeza =${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase2.sh")
 
-echo "== Carregando Fase 3: Instalação Silenciosa e Base =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 3: Instalação Silenciosa e Base ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase3.sh")
 
-echo "== Carregando Fase 4: Performance (ZRAM & SWAP) =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 4: Performance (ZRAM & SWAP) ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase4.sh")
 
 # Controle de Fluxo do Docker e Firewall
-echo "== Carregando Fase 5: Instalação / Verificação do Docker =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 5: Instalação / Verificação do Docker ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase5.sh")
 
 # Gerenciamento Dinâmico do Firewall (Com ou Sem Docker)
-echo "== Carregando Fase 6: Configuração Inteligente do Firewall =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 6: Configuração Inteligente do Firewall ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase6.sh")
 
-echo "== Carregando Fase 7: Configuração Git =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 7: Configuração Git ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase7.sh")
 
-echo "== Carregando Fase 8: SSH e Segurança =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 8: SSH e Segurança ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase8.sh")
 
-echo "== Executando Limpeza Final =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Executando Limpeza Final ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 apt autoremove -y && apt autoclean
 
-echo "== Carregando Fase 9: Log de Monitoramento Final =="
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 9: Log de Monitoramento Final ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
 source <(curl -fsSL "${BASE_URL}/fase9.sh")
