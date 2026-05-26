@@ -1,70 +1,74 @@
-# Docker VPS 🚀
+# Setup Absoluto, Firewall e Monitoramento - FSilva Cloud
 
-Este repositório contém o script de provisionamento automatizado para transformar uma VPS **Debian 12 Bookworm** limpa em um servidor de produção de alta performance, pronto para orquestrar containers Docker com o proxy.
+Este script em Shell Bash automatiza a configuração, otimização de performance, segurança e monitoramento de servidores virtuais (VPS) baseados em **Debian GNU/Linux 12 (Bookworm)** executando a infraestrutura da FSilva Cloud.
 
-## 🛠 O que o Script faz?
+---
 
-O script executa uma configuração de "Endurecimento" (Hardening) e Otimização dividida em 6 pilares estratégicos:
+## 🚀 Funcionalidades Principais
 
-### 1. Preparação e Atualização do Sistema
-* **Correção de Repositórios:** Limpa entradas antigas do Docker para evitar conflitos de pacotes.
-* **Update & Upgrade:** Sincroniza o sistema com os patches de segurança mais recentes.
-* **Sincronização de Tempo:** Configura o fuso horário para `America/Sao_Paulo` e sincroniza o relógio via `htpdate` para garantir que os certificados SSL não falhem por diferença de horário.
+* **Gerenciamento Automático de Travas:** Remove bloqueios residuais do gerenciador de pacotes (`apt`/`dpkg`).
+* **Alta Performance de Memória (ZRAM + SWAP):** Configura compressão ZRAM em `zstd` alocando **100% da RAM física**, combinado com um arquivo secundário de SWAP em disco de 4GB para picos de compilação.
+* **Segurança Baseada em Firewall Inteligente:** Restringe e isola a cadeia de rede interna do Docker (`DOCKER-USER`), liberando apenas portas essenciais HTTP (`80`) e HTTPS (`443`).
+* **Instalação Certificada de Dependências:** Garante e trava o motor do Docker Engine na versão estável `27.3.1`.
+* **Auditoria Visual Automatizada (Raio-X):** Gera um dashboard detalhado via terminal exibindo saúde do hardware, status das interfaces de rede, volumes do Docker e containers instáveis.
 
-### 2. Stack Docker v27 (Estabilidade de Produção)
-* **Repositório Oficial:** Instala as chaves GPG e configura o repositório oficial da Docker Inc.
-* **Versão Fixa:** Instala especificamente a versão `27.3.1` e aplica um `apt-mark hold` para evitar atualizações automáticas que possam causar downtime imprevisto.
-* **Habilitação:** Configura o serviço para iniciar automaticamente com o sistema.
+---
 
-### 3. Segurança e Firewall (iptables DOCKER-USER)
-* **Política Restritiva:** Reseta o firewall e define bloqueio total de entrada por padrão.
-* **Portas Abertas:** Libera apenas o essencial: **22/TCP (SSH)**, **80/TCP (HTTP)** e **443/TCP (HTTPS)**.
-* **Fail2Ban:** Para ativar e mitigar ataques de força bruta no acesso SSH use o comando abaixo.
-```bash 
-apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/failb2.sh | sudo bash
-```
+## 🛠️ Arquitetura das Fases do Script
 
-### 4. Gestão de Memória Híbrida (Expansão de RAM)
-Implementa uma hierarquia inteligente para que a VPS suporte cargas de trabalho muito superiores à RAM física nominal:
-* **ZRAM (Camada 1):** Cria um dispositivo comprimido com **ZSTD** usando 30% da RAM física `PERCENT=30`. Prioridade máxima `PRIORITY=100` por ser extremamente rápida e compressão ultra rápida `ALGO=zstd`.
-* **SWAP de Disco (Camada 2):** Cria um arquivo de reserva de **4GB** no SSD `fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096`.
-* **Ajuste de Swappiness:** Define o kernel para `vm.swappiness=60` com prioridade `pri=50`, garantindo que o sistema priorize a RAM/ZRAM e só use o disco em caso de necessidade.
+### Fase 1: Dependências de Sistema
+Instala ferramentas cruciais de monitoramento de processos, manipulação de texto e gerenciamento de rede (`psmisc`, `util-linux`, `procps`, `sed`, `grep`, `coreutils`, `curl`, `jq`, `bc`, `net-tools`).
 
-### 5. Orquestração
-* **Rede Docker:** Cria a rede externa `web` para comunicação isolada entre containers.
+### Fase 2: Desbloqueio e Limpeza
+Verifica se há processos do `apt` ou `dpkg` travados em background, matando-os de forma segura e limpando os arquivos de trava (`lock`) para evitar falhas de deploy.
 
+### Fase 3: Instalação Silenciosa e Base
+Configura o ambiente para ignorar prompts interativos (`DEBIAN_FRONTEND=noninteractive`), atualiza o sistema operacional e instala pacotes base como `htop`, `fail2ban`, `git`, `zram-tools` e sincroniza o relógio atômico com o fuso horário de `America/Sao_Paulo`.
 
-## 🚀 Instalação Rápida (One-Liner)
+### Fase 4: Performance (ZRAM & SWAP)
+Ajusta a otimização de memória do Linux aplicando as seguintes regras físicas:
+* **ZRAM (Prioridade 100):** Ativa compressão ultrarrápida na RAM utilizando o algoritmo `zstd` mapeando `PERCENT=100`.
+* **SWAPFILE (Prioridade 50):** Cria um arquivo de paginação em disco rígido de 4GB com permissão restrita `600` no diretório `/swapfile`.
+* **Swappiness:** Seta `vm.swappiness=60` garantindo estabilidade durante builds pesados que geram alta alocação de memória.
 
-Se você está em uma VPS Debian 12 recém-criada, execute o comando abaixo para configurar toda a infraestrutura automaticamente:
-- Preparar VPS
+### Fase 5: Configuração do Firewall (IPTABLES DOCKER-USER)
+Implementa segurança e isolamento para redes Docker criando e limpando a chain `DOCKER-USER`. Permite tráfego estabelecido, tráfego interno das pontes de rede do Docker e conexões públicas apenas para as portas `80` e `443`. Qualquer outro tráfego externo direcionado aos containers é explicitamente descartado (`DROP`).
+
+### Fase 6: Docker Engine v27 (Opcional Interativo)
+Adiciona chaves criptográficas do repositório oficial Docker e instala de maneira fixa as versões:
+* `docker-ce=5:27.3.1-1~debian.12~bookworm`
+* `docker-ce-cli=5:27.3.1-1~debian.12~bookworm`
+Aplica a trava `apt-mark hold` para impedir que atualizações acidentais do sistema quebrem a compatibilidade do motor do Docker.
+
+### Fase 7: Configuração Git (Opcional Interativo)
+Configura globalmente a identidade do desenvolvedor no servidor (`user.name` e `user.email`) e adiciona a flag protetiva `safe.directory '*'` para evitar problemas de permissões em repositórios clonados por diferentes usuários dentro dos volumes.
+
+### Fase 8: SSH e Segurança (Opcional Interativo)
+Endurece a segurança de acesso ao servidor alterando os parâmetros do arquivo `/etc/ssh/sshd_config` para desativar permanentemente o login por senha (`PasswordAuthentication no`), forçando o uso exclusivo de chaves privadas (SSH Keys).
+
+### Fase 9: Log de Monitoramento Final (Raio-X Completo)
+Realiza uma varredura geral em tempo real no servidor coletando dados de hardware e emitindo tabelas formatadas sobre:
+* **Identidade:** Sistema operacional, kernel, tempo de atividade (Uptime) e configurações ativas do Git/SSH.
+* **Rede:** IPs de interfaces locais, tráfego recebido/enviado em Megabytes e mapeamento de redes internas do Docker.
+* **Armazenamento e Memória:** Uso percentual real da RAM, consumo do bloco compactado do ZRAM, uso do SWAP em disco e tamanho ocupado individualmente por cada volume mapeado no Docker.
+* **Containers:** Lista o nome de todos os containers ativos, seus respectivos IPs internos na subrede docker, status e contabiliza se há aplicações em loop de falha (`restarting`).
+* **SSL:** Contabiliza certificados válidos gerenciados pelo Traefik através do arquivo `acme.json`.
+
+---
+
+## 🖥️ Como Executar
+
+O script exige privilégios de superusuário (**root**) para manipular regras de kernel e firewall.
 ```bash
 apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/setup.sh | sudo bash
 ```
 
-
-- Firewall de segurança
-As portas 22 (ssh), 80 (http) e 443 (https) foram configuradas no comando acima junto com a preparação da VPS.
-Se quiser aqui pode alterar para mais protecão, exemplo se vai usar pela cloudflare
+1. Baixe ou crie o arquivo do script no servidor (ex: `setup.sh`).
+2. Conceda permissão de execução:
 ```bash
-apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/firewall.sh | sudo bash
+chmod +x setup.sh
 ```
-
-- Checar o status das configurações
-Para conferir o que foi configurado, rode o comando para ver o status da VPS
+3. Execute o script:
 ```bash
-apt update && apt install -y curl && curl -sSL https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/status.sh | sudo bash
+./setup.sh
 ```
-
-- Gerar e Adicionar a Chave SSH
-Se você ainda não tem uma chave ou o GitHub não a conhece, faça isso:
-1. Gerar a chave (dê ENTER em tudo):
-```bash
-ssh-keygen -t ed25519 -C "docker-vps"
-```
-2. Copiar a chave gerada:
-```bash
-cat ~/.ssh/id_ed25519.pub
-```
----
-**Desenvolvido por Francisco Silva (FSilva) — 2026** *Licença: MIT*

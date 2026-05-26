@@ -62,7 +62,7 @@ swapoff -a || true
 # 2. Configura ZRAM (Prioridade 100)
 cat <<EOF > /etc/default/zramswap
 ALGO=zstd
-PERCENT=30
+PERCENT=100
 PRIORITY=100
 EOF
 systemctl restart zramswap
@@ -269,7 +269,7 @@ for cid in $(docker ps -q); do
     printf "%-22s %-18s %-15s %-12s\n" "$NAME" "$HOST" "$IPS" "$STAT"
 done
 
-ACME_FILE="/opt/fsilva-cloud/proxy/acme.json"
+ACME_FILE="/opt/fsilva-cloud/proxy/traefik/certificados/acme.json"
 if [ -f "$ACME_FILE" ]; then
     CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
     echo -e "\n${GREEN}CERTIFICADOS SSL TRAEFIK:${RESET} $CERT_COUNT Ativos"
