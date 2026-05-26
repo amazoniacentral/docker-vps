@@ -41,35 +41,39 @@ else
     SWAP_SIZE="6G"
 fi
 
-# 4. Configuração Segura do Swapfile em Disco
+# 4. Configuração Segura e Reciclagem do Swapfile em Disco
 echo "== Configurando Swapfile (${SWAP_SIZE}) =="
 
-# Se o arquivo físico não existe, cria do zero
+# Se o arquivo já existe, desativa ele primeiro para despejar e limpar resíduos antigos na marra
+if [ -f /swapfile ]; then
+    echo "== Reciclando e limpando dados do Swapfile existente =="
+    swapoff /swapfile 2>/dev/null || true
+    
+    # Verifica se precisamos mudar o tamanho (ex: mudou de 4G para 6G ou vice-versa)
+    CURRENT_SWAP_BYTES=$(stat -c%s /swapfile 2>/dev/null || echo 0)
+    WANTED_BYTES=$(echo $SWAP_SIZE | sed 's/G//' | awk '{print $1 * 1024 * 1024 * 1024}')
+    
+    if [ "$CURRENT_SWAP_BYTES" -ne "$WANTED_BYTES" ]; then
+        echo "== Redimensionando Swapfile de ${CURRENT_SWAP_BYTES} para ${SWAP_SIZE} =="
+        rm -f /swapfile
+    fi
+fi
+
+# Se não existe ou foi removido pelo redimensionamento, cria do zero
 if [ ! -f /swapfile ]; then
     fallocate -l $SWAP_SIZE /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=$(echo $SWAP_SIZE | sed 's/G//' | awk '{print $1 * 1024}')
     chmod 600 /swapfile
     mkswap /swapfile
-else
-    # Se o arquivo já existe, verifica se precisamos expandi-lo para 6GB com segurança
-    CURRENT_SWAP_BYTES=$(stat -c%s /swapfile 2>/dev/null || echo 0)
-    if [ "$SWAP_SIZE" = "6G" ] && [ "$CURRENT_SWAP_BYTES" -lt 5000000000 ]; then
-        echo "== Expandindo Swapfile existente para 6G =="
-        swapoff /swapfile 2>/dev/null || true
-        rm -f /swapfile
-        fallocate -l 6G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=6144
-        chmod 600 /swapfile
-        mkswap /swapfile
-    fi
 fi
 
-# Ativa o swapfile de forma segura sem estourar erro se ele já estiver ativo (busy)
-swapon -p 50 /swapfile 2>/dev/null || true
+# Ativa o swapfile zerado com a prioridade correta (50)
+swapon -p 50 /swapfile
 
-# Garante a persistência limpa e sem duplicatas no fstab
+# Garante a segurança e persistência limpa e sem duplicatas no fstab
 sed -i '/swapfile/d' /etc/fstab
 echo "/swapfile none swap sw,pri=50 0 0" >> /etc/fstab
 
-# 5. Limpeza de outros swaps órfãos e antigos remanescentes
+# 5. Limpeza de outros swaps órfãos e antigos remanescentes externos
 echo "== Removendo outros swaps órfãos =="
 swapon --show=NAME --noheadings | grep -v "/swapfile" | grep -v "zram" | while read -r old_swap; do
     swapoff "$old_swap" || true
