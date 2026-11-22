@@ -70,6 +70,34 @@ sudo ./setup.sh
 ```
 
 <!-- START_ID:bloco_estrutura -->
+```bash
+.
+├── .doc
+│   ├── blocos.sh
+│   ├── cabecalho.sh
+│   ├── estrutura.sh
+│   ├── README.md
+│   ├── rodape.sh
+│   ├── setup.sh
+│   └── variaveis.sh
+├── fases
+│   ├── 01-deps-sistema.sh
+│   ├── 02-unlock-apt.sh
+│   ├── 03-base-fail2ban.sh
+│   ├── 04-zram-swap.sh
+│   ├── 05-docker-engine.sh
+│   ├── 06-firewall.sh
+│   ├── 07-git-tools.sh
+│   ├── 08-ssh-hardening.sh
+│   ├── 09-raiox.sh
+│   └── README.md
+├── .gitignore
+├── LICENSE
+├── README.md
+└── setup.sh
+
+3 directories, 21 files
+```
 <!-- END_ID:bloco_estrutura -->
 
 <!-- START_ID:bloco_final -->
