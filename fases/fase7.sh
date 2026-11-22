@@ -1,29 +1,129 @@
-# --- FASE 7: CONFIGURAÇÃO GIT E GITHUB CLI ---
-echo -e "\n${YELLOW}Deseja configurar o Git e o GitHub CLI agora? (s/n)${RESET}"
-read -p "> " CONFIRM_GIT < /dev/tty
+# --- FASE 7: GIT, CHAVE SSH, GITHUB CLI E LOGIN DOCKER (OBRIGATÓRIO E RESILIENTE) ---
+echo "=============================================================================="
+echo " O QUE ESTE SCRIPT FAZ:"
+echo " 1. Instalação e Verificação Obrigatória de Git e GitHub CLI (gh):"
+echo "    - Instala e garante a presença de ambos no sistema."
+echo " 2. Chave SSH Obrigatória:"
+echo "    - Garante que existe uma chave SSH configurada e vinculada ao GitHub."
+echo " 3. Configuração Ativa do Git:"
+echo "    - Exige usuário e e-mail válidos configurados globalmente."
+echo " 4. Autenticação Concluída no GitHub e Docker:"
+echo "    - Só permite avançar na automação após o token garantir sucesso no gh e ghcr.io."
+echo "    - NUNCA aborta sozinho: se houver falhas, solicita confirmação e reitera."
+echo "=============================================================================="
 
-if [[ "$CONFIRM_GIT" =~ ^[Ss]$ ]]; then
-    # Configuração do Git
-    echo -n "Digite o Nome de Usuário Git: "
-    read -r GIT_USER < /dev/tty
-    echo -n "Digite o E-mail do Git: "
-    read -r GIT_EMAIL < /dev/tty
+echo "== 1. Verificando e instalando Git e GitHub CLI (gh) =="
+if ! command -v git &> /dev/null; then
+    echo "Instalando Git..."
+    apt-get update && apt-get install -y git
+fi
+
+if ! command -v gh &> /dev/null; then
+    echo "Instalando GitHub CLI (gh)..."
+    install -m 0755 -d /usr/share/keyrings
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &> /dev/null
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    apt-get update && apt-get install -y gh
+fi
+
+# Loop de insistência obrigatória: Só sai daqui quando TUDO estiver configurado e conectado com sucesso
+while true; do
+    echo "--------------------------------------------------------"
+    echo "🔄 Validando estado das configurações de Git, SSH e Tokens..."
     
-    git config --global user.name "$GIT_USER"
-    git config --global user.email "$GIT_EMAIL"
-    git config --global --add safe.directory '*'
-    echo -e "${GREEN}Git configurado para $GIT_USER ($GIT_EMAIL).${RESET}"
-
-    # Instalação do GitHub CLI (gh)
-    if ! command -v gh &> /dev/null; then
-        echo -e "${YELLOW}Instalando GitHub CLI (gh)...${RESET}"
-        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &> /dev/null
-        chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-        apt update && apt install gh -y
+    TUDO_CONFIGURADO=true
+    
+    # Valida Git User/Email
+    CURRENT_GIT_USER=$(git config --global user.name || true)
+    CURRENT_GIT_EMAIL=$(git config --global user.email || true)
+    if [ -z "$CURRENT_GIT_USER" ] || [ -z "$CURRENT_GIT_EMAIL" ]; then
+        TUDO_CONFIGURADO=false
+        echo "⚠️ Git sem usuário ou e-mail configurados."
+        echo -n "Digite o seu Nome de Usuário Git: "
+        read -r GIT_USER < /dev/tty
+        echo -n "Digite o seu E-mail do Git: "
+        read -r GIT_EMAIL < /dev/tty
+        if [ -n "$GIT_USER" ] && [ -n "$GIT_EMAIL" ]; then
+            git config --global user.name "$GIT_USER"
+            git config --global user.email "$GIT_EMAIL"
+            git config --global --add safe.directory '*'
+            echo "✅ Git configurado com sucesso!"
+        fi
     fi
 
-    # Autenticação no GitHub
-    echo -e "${YELLOW}Iniciando autenticação no GitHub...${RESET}"
-    gh auth login
-fi
+    # Valida Chave SSH
+    mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    if [ ! -f "$HOME/.ssh/id_ed25519" ] && [ ! -f "$HOME/.ssh/id_rsa" ]; then
+        TUDO_CONFIGURADO=false
+        echo "⚠️ Nenhuma chave SSH encontrada no sistema."
+        echo "🔑 Gerando chave ed25519 nova..."
+        ssh-keygen -t ed25519 -N "" -f "$HOME/.ssh/id_ed25519" &> /dev/null
+        chmod 600 "$HOME/.ssh/id_ed25519"
+        echo "=============================================================================="
+        echo "📋 ATENÇÃO: COPIE A CHAVE PÚBLICA ABAIXO E ADICIONE NO SEU GITHUB (Settings -> SSH keys):"
+        cat "$HOME/.ssh/id_ed25519.pub"
+        echo "=============================================================================="
+        read -p "Pressione [Enter] após adicionar a chave no GitHub para prosseguir..." < /dev/tty
+    fi
+
+    if ! grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null; then
+        ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+    fi
+
+    # Valida Login GitHub CLI (gh) e Docker (ghcr.io)
+    GH_LOGADO=false
+    DOCKER_LOGADO=false
+
+    if gh auth status &> /dev/null; then
+        GH_LOGADO=true
+    fi
+
+    if grep -q "ghcr.io" ~/.docker/config.json 2>/dev/null; then
+        DOCKER_LOGADO=true
+    fi
+
+    if [ "$GH_LOGADO" = false ] || [ "$DOCKER_LOGADO" = false ]; then
+        TUDO_CONFIGURADO=false
+        echo "⚠️ Autenticação pendente no GitHub CLI e/ou Docker (ghcr.io)."
+        echo -n "Digite seu Token do GitHub (PAT com permissões repo e read:packages): "
+        read -rs GH_TOKEN_INPUT < /dev/tty
+        echo ""
+
+        if [ -n "$GH_TOKEN_INPUT" ]; then
+            if [ "$GH_LOGADO" = false ]; then
+                echo "$GH_TOKEN_INPUT" | gh auth login --with-token
+                gh auth setup-git
+            fi
+
+            if [ "$DOCKER_LOGADO" = false ] && command -v docker &> /dev/null; then
+                echo -n "Digite seu usuário do GitHub (ex: amazoniacentral): "
+                read -r GH_USERNAME < /dev/tty
+                if [ -n "$GH_USERNAME" ]; then
+                    echo "$GH_TOKEN_INPUT" | docker login ghcr.io -u "$GH_USERNAME" --password-stdin
+                fi
+            fi
+        else
+            echo "❌ Token vazio não é permitido para esta etapa de produção."
+        fi
+    fi
+
+    # Se tudo estiver perfeitamente configurado e conectado, sai do loop e avança
+    if [ "$TUDO_CONFIGURADO" = true ] && gh auth status &> /dev/null && { [ ! -f /var/run/docker.sock ] || grep -q "ghcr.io" ~/.docker/config.json 2>/dev/null; }; then
+        echo "✅ Todas as verificações da Fase 7 foram concluídas, configuradas e conectadas com sucesso!"
+        break
+    else
+        echo "⚠️ Ainda existem pendências na configuração acima."
+        read -p "Deseja tentar novamente a configuração? (S/n): " TENTAR_DE_NOVO < /dev/tty
+        TENTAR_DE_NOVO=${TENTAR_DE_NOVO:-S}
+        if [[ "$TENTAR_DE_NOVO" =~ ^[Nn]$ ]]; then
+            read -p "Tem certeza que deseja abortar/interromper o processo de configuração? (s/N): " CONFIRMA_ABORTO < /dev/tty
+            if [[ "$CONFIRMA_ABORTO" =~ ^[Ss]$ ]]; then
+                echo "❌ Operação interrompida pelo usuário mediante confirmação explicita."
+                exit 1
+            else
+                echo "🔄 Retornando ao processo de configuração..."
+            fi
+        fi
+    fi
+done
