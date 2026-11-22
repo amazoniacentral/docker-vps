@@ -18,6 +18,33 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 RESET='\033[0m'
 
+# 2. Verificar se o sistema é Debian 12
+OS_ID=""
+OS_VERSION=""
+OS_PRETTY="Desconhecido"
+
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_ID="$ID"
+    OS_VERSION="$VERSION_ID"
+    OS_PRETTY="$PRETTY_NAME"
+fi
+
+if [ "$OS_ID" != "debian" ] || [ "$OS_VERSION" != "12" ]; then
+    echo -e "${RED}================================================================${RESET}"
+    echo -e "${YELLOW}⚠️  AVISO DE COMPATIBILIDADE${RESET}"
+    echo -e "${RED}================================================================${RESET}"
+    echo -e "Sistema detectado: ${CYAN}${OS_PRETTY}${RESET}"
+    echo -e "Este script foi desenvolvido e testado com foco exclusivo no ${GREEN}Debian 12 (Bookworm)${RESET}."
+    echo -e "Executar em outras distribuições ou versões pode causar falhas ou incompatibilidades."
+    echo ""
+    read -p "Deseja continuar mesmo assim? (s/N): " CONTINUAR < /dev/tty
+    if [[ ! "$CONTINUAR" =~ ^[Ss]$ ]]; then
+        echo -e "${RED}Execução cancelada pelo usuário.${RESET}"
+        exit 1
+    fi
+fi
+
 clear
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}           INICIANDO SETUP INTEGRADO (SISTEMA + FIREWALL)${RESET}"
