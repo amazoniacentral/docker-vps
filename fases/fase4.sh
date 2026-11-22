@@ -1,4 +1,23 @@
 # --- FASE 4: PERFORMANCE (ZRAM & SWAP) ---
+echo "=============================================================================="
+echo " O QUE ESTE SCRIPT FAZ:"
+echo " 1. Limpeza Cirúrgica (Reset Preventivo):"
+echo "    - Interrompe e descarrega da memória qualquer serviço ZRAM anterior."
+echo " 2. Ativação Inteligente de ZRAM:"
+echo "    - Tenta ativar o ZRAM com compressão 'zstd' para compactar a RAM em tempo"
+echo "      real, economizando espaço e acelerando o servidor."
+echo " 3. Sistema de Contingência (Fallback de Swap):"
+echo "    - Se o ZRAM funcionar, cria um Swapfile em disco de 4G."
+echo "    - Se o ZRAM falhar, ativa um Swapfile maior de 6G para blindar a VPS."
+echo " 4. Gestão e Reciclagem de Swapfile:"
+echo "    - Verifica se já existe um Swapfile anterior. Se já existir e o tamanho"
+echo "      tiver mudado, ele recicla, apaga o antigo e cria um novo ajustado."
+echo "    - Define permissões seguras (600) e registra a persistência no /etc/fstab."
+echo " 5. Otimização de Kernel (Swappiness):"
+echo "    - Ajusta o 'vm.swappiness=10' para forçar o sistema a priorizar a RAM"
+echo "      física/ZRAM, usando o disco o menos possível (ganho massivo de performance)."
+echo "=============================================================================="
+
 echo "== Configurando Camadas de Memória (ZRAM + SWAP) =="
 
 # Inicializa variáveis de controle
@@ -28,7 +47,7 @@ PRIORITY=100
 EOF
     systemctl daemon-reload
     if systemctl start zramswap 2>/dev/null; then
-        echo -e "${GREEN}ZRAM ativado e iniciado com sucesso!${RESET}"
+        echo "ZRAM ativado e iniciado com sucesso!"
         ZRAM_SUPORTADO=true
     fi
 fi
@@ -37,7 +56,7 @@ fi
 if [ "$ZRAM_SUPORTADO" = true ]; then
     SWAP_SIZE="4G"
 else
-    echo -e "${YELLOW}Aviso: ZRAM não é permitido ou falhou nesta VPS. Ativando contingência com Swapfile expandido.${RESET}"
+    echo "Aviso: ZRAM não é permitido ou falhou nesta VPS. Ativando contingência com Swapfile expandido."
     SWAP_SIZE="6G"
 fi
 
@@ -49,7 +68,7 @@ if [ -f /swapfile ]; then
     echo "== Reciclando e limpando dados do Swapfile existente =="
     swapoff /swapfile 2>/dev/null || true
     
-    # Verifica se precisamos mudar o tamanho (ex: mudou de 4G para 6G ou vice-versa)
+    # Verificação segura de tamanho usando awk/stat
     CURRENT_SWAP_BYTES=$(stat -c%s /swapfile 2>/dev/null || echo 0)
     WANTED_BYTES=$(echo $SWAP_SIZE | sed 's/G//' | awk '{print $1 * 1024 * 1024 * 1024}')
     
@@ -83,4 +102,4 @@ done
 echo "vm.swappiness=10" > /etc/sysctl.d/sysctl.conf
 sysctl -p /etc/sysctl.d/sysctl.conf
 
-echo -e "${GREEN}Configuração de performance finalizada com sucesso!${RESET}"
+echo "Configuração de performance finalizada com sucesso!"
