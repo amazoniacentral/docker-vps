@@ -16,7 +16,7 @@ fi
 echo "Iniciando processamento em: $BASE_DIR"
 
 # Localiza todos os README.md (ignorando repos/*/*)
-find "$BASE_DIR" -path "$BASE_DIR/repos/*/*" -prune -o -name "README.md" -type f -print | while read -r ARQUIVO_MD; do
+find "$BASE_DIR" -path "$BASE_DIR/.doc/*/*" -prune -o -name "README.md" -type f -print | while read -r ARQUIVO_MD; do
 
     # Marcadores invisíveis (Comentários HTML)
     ID_START="<!-- START_ID:bloco_estrutura -->"
