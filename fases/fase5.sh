@@ -1,5 +1,22 @@
 # --- FASE 5: DOCKER ENGINE OFICIAL ---
-echo -e "\n${YELLOW}Verificando instalação do Docker Engine...${RESET}"
+echo "=============================================================================="
+echo " O QUE ESTE SCRIPT FAZ:"
+echo " 1. Verificação de Instalação Existente:"
+echo "    - Checa se o Docker já está instalado na VPS. Se já estiver, pula o"
+echo "      processo para economizar tempo e evitar sobrescrever configurações."
+echo " 2. Configuração do Repositório Oficial do Docker:"
+echo "    - Cria o diretório seguro de chaves criptográficas (keyrings)."
+echo "    - Baixa e instala a chave GPG oficial da Docker Inc."
+echo "    - Adiciona o repositório oficial do Docker adaptado para a versão exata"
+echo "      do seu Debian (Bookworm) e arquitetura do processador."
+echo " 3. Instalação Completa do Ecossistema Docker:"
+echo "    - Instala o Docker Engine (daemon), CLI, containerd, plugin Buildx"
+echo "      e o indispensável Docker Compose (docker-compose-plugin)."
+echo " 4. Inicialização Automática:"
+echo "    - Habilita e inicia o serviço do Docker imediatamente (systemctl)."
+echo "=============================================================================="
+
+echo "== Verificando instalação do Docker Engine =="
 
 if command -v docker &> /dev/null; then
     echo "✅ Docker já está instalado ($(docker --version)). Pulando instalação..."
