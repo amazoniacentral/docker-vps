@@ -69,6 +69,7 @@ chmod +x setup.sh
 sudo ./setup.sh
 ```
 
+4. Estrutura do projeto
 <!-- START_ID:bloco_estrutura -->
 ```bash
 .
