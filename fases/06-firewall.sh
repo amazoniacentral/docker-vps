@@ -6,9 +6,9 @@ echo "    - Garante que as regras salvas sobrevivam a reboots da VPS."
 echo " 2. Detecção Dinâmica da Porta SSH:"
 echo "    - Identifica automaticamente qual porta o serviço SSH está usando no momento"
 echo "      (padrão 22 ou personalizada), evitando que você seja banido da sua VPS."
-echo " 3. Estratégia Inteligente Baseada em Docker (com Menu Cloudflare):"
-echo "    - Se o Docker estiver presente, permite escolher entre o Modo RESTRITO"
-echo "      (apenas IPs da Cloudflare nas portas 80/443) ou ABERTO."
+echo " 3. Estratégia de Rede Baseada em Docker (com Menu Cloudflare):"
+echo "    - Permite escolher entre o Modo RESTRITO (apenas IPs da Cloudflare"
+echo "      nas portas 80/443) ou ABERTO para gerenciar o tráfego dos containers."
 echo " 4. Persistência de Regras:"
 echo "    - Salva permanentemente as regras via 'netfilter-persistent save'."
 echo "=============================================================================="
@@ -30,72 +30,56 @@ if command -v ufw >/dev/null 2>&1; then
     fi
 fi
 
-# Detectar a porta real do SSH para não trancar o usuário para fora do Host
+# 3. Detectar a porta real do SSH para não trancar o usuário para fora do Host
 SSH_PORT=$(ss -tulpn | grep sshd | grep -oP '(?<=:)\d+(?=\s)' | head -n1)
 SSH_PORT=${SSH_PORT:-22}
 
-if command -v docker >/dev/null 2>&1; then
-    echo "== [CENÁRIO DOCKER] Configurando segurança nas correntes DOCKER-USER e INPUT =="
+echo "== Configurando segurança nas correntes DOCKER-USER e INPUT =="
+
+# Garante que a porta SSH dinâmica está aberta no Host (Input)
+iptables -C INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
+
+# Menu interativo do modo de segurança para o Docker (Portas 80/443)
+while true; do
+    echo "----------------------------------------------------"
+    echo "SELECIONE O MODO DE SEGURANÇA DOCKER (Portas 80/443):"
+    echo "1) RESTRITO (Apenas Cloudflare)"
+    echo "2) ABERTO (Qualquer IP)"
+    echo "----------------------------------------------------"
     
-    # Garante que a porta SSH dinâmica está aberta no Host (Input)
-    iptables -C INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
+    read -p "Sua opção [1 ou 2]: " modo < /dev/tty
 
-    # Menu interativo do modo de segurança para o Docker (Portas 80/443)
-    while true; do
-        echo "----------------------------------------------------"
-        echo "SELECIONE O MODO DE SEGURANÇA DOCKER (Portas 80/443):"
-        echo "1) RESTRITO (Apenas Cloudflare)"
-        echo "2) ABERTO (Qualquer IP)"
-        echo "----------------------------------------------------"
-        
-        read -p "Sua opção [1 ou 2]: " modo < /dev/tty
+    case $modo in
+        1|2) break ;;
+        *) echo "RESPOSTA INVÁLIDA. Digite 1 ou 2."; sleep 1 ;;
+    esac
+done
 
-        case $modo in
-            1|2) break ;;
-            *) echo "RESPOSTA INVÁLIDA. Digite 1 ou 2."; sleep 1 ;;
-        esac
+# Limpa e configura DOCKER-USER
+iptables -N DOCKER-USER 2>/dev/null || iptables -F DOCKER-USER
+iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A DOCKER-USER -i docker0 -j ACCEPT
+iptables -A DOCKER-USER -i br-+ -j ACCEPT
+
+if [[ "$modo" == "1" ]]; then
+    echo "Aplicando Modo RESTRITO (Cloudflare nas portas 80/443)..."
+    CLOUDFLARE_IPS=(
+        173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 
+        141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 
+        197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 
+        104.24.0.0/14 172.64.0.0/13 131.0.72.0/22
+    )
+    for ip in "${CLOUDFLARE_IPS[@]}"; do
+        iptables -A DOCKER-USER -s "$ip" -p tcp -m multiport --dports 80,443 -j ACCEPT
     done
-
-    # Limpa e configura DOCKER-USER
-    iptables -N DOCKER-USER 2>/dev/null || iptables -F DOCKER-USER
-    iptables -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    iptables -A DOCKER-USER -i docker0 -j ACCEPT
-    iptables -A DOCKER-USER -i br-+ -j ACCEPT
-
-    if [[ "$modo" == "1" ]]; then
-        echo "Aplicando Modo RESTRITO (Cloudflare nas portas 80/443)..."
-        CLOUDFLARE_IPS=(
-            173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 
-            141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 
-            197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 
-            104.24.0.0/14 172.64.0.0/13 131.0.72.0/22
-        )
-        for ip in "${CLOUDFLARE_IPS[@]}"; do
-            iptables -A DOCKER-USER -s "$ip" -p tcp -m multiport --dports 80,443 -j ACCEPT
-        done
-        iptables -A DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 -j DROP
-    else
-        echo "Aplicando Modo ABERTO (Portas 80/443 liberadas para todos)..."
-        iptables -A DOCKER-USER -p tcp -m multiport --dports 80,443 -j ACCEPT
-    fi
-
-    iptables -A DOCKER-USER -j RETURN
-    echo -e "${GREEN}✅ Firewall focado em Containers (DOCKER-USER) aplicado com sucesso!${RESET}"
+    iptables -A DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 -j DROP
 else
-    echo "== [CENÁRIO HOST PURO] Aplicando regras de isolamento na corrente INPUT =="
-    
-    iptables -P INPUT ACCEPT 
-    iptables -F INPUT
-    
-    iptables -A INPUT -i lo -j ACCEPT
-    iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    iptables -A INPUT -p tcp --dport "$SSH_PORT" -j ACCEPT
-    iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-    iptables -A INPUT -p tcp --dport 443 -j ACCEPT
-    iptables -P INPUT DROP
-    
-    echo -e "${GREEN}✅ Firewall focado no Host (INPUT) aplicado com sucesso na porta SSH ${SSH_PORT}!${RESET}"
+    echo "Aplicando Modo ABERTO (Portas 80/443 liberadas para todos)..."
+    iptables -A DOCKER-USER -p tcp -m multiport --dports 80,443 -j ACCEPT
 fi
+
+iptables -A DOCKER-USER -j RETURN
+echo -e "${GREEN}✅ Firewall focado em Containers (DOCKER-USER) aplicado com sucesso!${RESET}"
 
 # Salva as alterações de forma persistente
 netfilter-persistent save &>/dev/null || true
