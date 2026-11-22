@@ -64,6 +64,9 @@ EOF
 systemctl enable fail2ban &>/dev/null
 systemctl restart fail2ban
 
+# Pausa de segurança para garantir que o socket do fail2ban suba corretamente
+sleep 2
+
 echo -e "${GREEN}✅ Fail2Ban configurado e ativo com sucesso!${RESET}"
 echo -e "${CYAN}----------------------------------------------------------------${RESET}"
 echo -e "IPs na Whitelist: ${YELLOW}${IGNORE_LIST}${RESET}"
