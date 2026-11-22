@@ -72,14 +72,6 @@ sudo ./setup.sh
 <!-- START_ID:bloco_estrutura -->
 ```bash
 .
-├── .doc
-│   ├── blocos.sh
-│   ├── cabecalho.sh
-│   ├── estrutura.sh
-│   ├── README.md
-│   ├── rodape.sh
-│   ├── setup.sh
-│   └── variaveis.sh
 ├── fases
 │   ├── 01-deps-sistema.sh
 │   ├── 02-unlock-apt.sh
@@ -96,7 +88,7 @@ sudo ./setup.sh
 ├── README.md
 └── setup.sh
 
-3 directories, 21 files
+2 directories, 14 files
 ```
 <!-- END_ID:bloco_estrutura -->
 
