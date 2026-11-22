@@ -34,8 +34,7 @@ Este projeto consiste em um script avançado de automação em Bash desenvolvido
 ### Fase 6: Firewall Inteligente (IPTABLES + Cloudflare)
 * **Anti-Lockout SSH Dinâmico:** Identifica automaticamente a porta real em que o serviço SSH está rodando (`22` ou personalizada) e garante que ela permaneça aberta na tabela `INPUT`.
 * **Menu de Segurança Docker (Portas 80/443):**
-  * Se o Docker estiver presente, exibe um menu interativo permitindo escolher entre o **Modo RESTRITO** (liberando HTTP/HTTPS estritamente para os IPs oficiais da Cloudflare e bloqueando o tráfego direto na porta WAN) ou o **Modo ABERTO** (liberando para qualquer origem).
-  * Caso o Docker não esteja presente, aplica uma política padrão de firewall restritiva no Host (`INPUT DROP`), liberando apenas o loopback, conexões estabelecidas e as portas essenciais (SSH, 80 e 443).
+  * Gerencia o tráfego na cadeia `DOCKER-USER`, permitindo escolher via menu interativo entre o **Modo RESTRITO** (liberando HTTP/HTTPS estritamente para os IPs oficiais da Cloudflare e bloqueando o tráfego direto na porta WAN) ou o **Modo ABERTO** (liberando para qualquer origem).
 * **Persistência:** Salva automaticamente o estado das regras via `netfilter-persistent save`.
 
 ### Fase 7: Git e GitHub CLI (GH)
@@ -62,3 +61,5 @@ O script exige privilégios de superusuário (**root**) para manipular regras de
 2. Conceda permissão de execução:
 ```bash
 chmod +x setup.sh
+sudo ./setup.sh
+```
