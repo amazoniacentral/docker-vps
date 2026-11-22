@@ -6,16 +6,14 @@
 # ==============================================================================
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-BASE_DIR=$(readlink -f "$SCRIPT_DIR/../..")
+BASE_DIR=$(readlink -f "$SCRIPT_DIR/..")
 
 # --- CONFIGURAÇÃO DO CONTEÚDO ---
 
 # Usando Heredoc para manter as quebras de linha e a formatação
 read -r -d '' NOVO_CONTEUDO << EOM
-# FSilva Cloud
-*Infraestrutura de Alta Disponibilidade e Orquestração de Containers*
-
-_Uma estrutura híbrida para garantir que seus aplicativos Docker estejam acessíveis de forma segura e eficiente, adaptando-se a diferentes cenários de rede._
+# FSILVA CLOUD: PROVISIONAMENTO E BLINDAGEM DE VPS
+## Infraestrutura Modular, Automatizada e de Alta Performance para Debian 12
 EOM
 
 # --------------------------------------------

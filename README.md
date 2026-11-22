@@ -1,5 +1,5 @@
-# FSILVA CLOUD: PROVISIONAMENTO E BLINDAGEM DE VPS
-## Infraestrutura Modular, Automatizada e de Alta Performance para Debian 12
+<!-- START_ID:cabecalho -->
+<!-- END_ID:cabecalho -->
 
 Este projeto consiste em um script avançado de automação em Bash desenvolvido para provisionar, endurecer e monitorar servidores virtuais privados (VPS) rodando **Debian GNU/Linux 12 (Bookworm)**. Ele foi arquitetado para eliminar tarefas manuais repetitivas, aplicando padrões rigorosos de segurança de rede, otimização extrema de recursos de hardware e resiliência operacional para ambientes de produção.
 
@@ -66,3 +66,10 @@ chmod +x setup.sh
 ```bash
 sudo ./setup.sh
 ```
+
+<!-- START_ID:bloco_estrutura -->
+<!-- END_ID:bloco_estrutura -->
+
+<!-- START_ID:bloco_final -->
+<!-- END_ID:bloco_final -->
+

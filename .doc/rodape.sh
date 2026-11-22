@@ -6,14 +6,14 @@
 # ==============================================================================
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-BASE_DIR=$(readlink -f "$SCRIPT_DIR/../..")
+BASE_DIR=$(readlink -f "$SCRIPT_DIR/..")
 
 # --- CONFIGURAÇÃO DO CONTEÚDO ---
 
 # O Heredoc preserva o título, negritos e quebras de linha exatamente como digitados
 read -r -d '' NOVO_CONTEUDO << EOM
 ---
-**Desenvolvido por Francisco Silva (FSilva)**
+**Desenvolvido por Francisco Silva (FSilva Cloud)**
 
 _Atualizado em: $(date +%d/%m/%Y)_
 EOM

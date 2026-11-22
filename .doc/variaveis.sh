@@ -6,7 +6,7 @@
 # ==============================================================================
 
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-BASE_DIR=$(readlink -f "$SCRIPT_DIR/../..")
+BASE_DIR=$(readlink -f "$SCRIPT_DIR/..")
 
 # 1. Verificar se o tree está instalado
 if ! command -v tree &> /dev/null; then

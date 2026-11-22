@@ -8,7 +8,7 @@
 
 # Definição das bases de diretório
 SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-BASE_DIR=$(readlink -f "$SCRIPT_DIR/../..")
+BASE_DIR=$(readlink -f "$SCRIPT_DIR/..")
 
 # Configuração de diretório temporário
 TEMP_DIR="${TMPDIR:-/tmp}"
