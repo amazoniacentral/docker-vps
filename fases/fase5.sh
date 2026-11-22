@@ -1,4 +1,4 @@
-# --- FASE 5: DOCKER ENGINE OFICIAL ---
+# --- FASE 5: DOCKER ENGINE OFICIAL E LIMPEZA DE RESÍDUOS ---
 echo "=============================================================================="
 echo " O QUE ESTE SCRIPT FAZ:"
 echo " 1. Verificação de Instalação Existente:"
@@ -14,6 +14,9 @@ echo "    - Instala o Docker Engine (daemon), CLI, containerd, plugin Buildx"
 echo "      e o indispensável Docker Compose (docker-compose-plugin)."
 echo " 4. Inicialização Automática:"
 echo "    - Habilita e inicia o serviço do Docker imediatamente (systemctl)."
+echo " 5. Limpeza Automática de Resíduos:"
+echo "    - Remove containers parados, imagens órfãs (<none>) e cache de build"
+echo "      acumulado para manter o sistema sempre limpo."
 echo "=============================================================================="
 
 echo "== Verificando instalação do Docker Engine =="
@@ -35,3 +38,9 @@ else
     systemctl enable --now docker
     echo "✅ Docker instalado com sucesso!"
 fi
+
+echo "== Executando limpeza automática de resíduos do Docker =="
+docker container prune -f &>/dev/null || true
+docker image prune -f &>/dev/null || true
+docker builder prune -f -a &>/dev/null || true
+echo "✅ Limpeza do Docker concluída!"

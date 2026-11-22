@@ -3,13 +3,13 @@ echo "==========================================================================
 echo " O QUE ESTE SCRIPT FAZ:"
 echo " 1. Resumo Global das Fases Anteriores:"
 echo "    - Fases 1 & 2: Sincronização de relógio, ZRAM (zstd) e Swapfile de 6GB."
-echo "    - Fases 3 & 4: Fail2Ban ativado e Docker Engine instalado com segurança."
+echo "    - Fases 3 & 4: Fail2Ban ativado e Docker Engine instalado e limpo."
 echo "    - Fases 5 & 6: Firewall inteligente via IPTables (cadeia DOCKER-USER)."
 echo "    - Fase 7: Git, GitHub CLI (gh) e autenticação obrigatória (ghcr.io)."
 echo "    - Fase 8: Hardening do SSH (KeepAlive e acesso por senha mantido)."
 echo " 2. Auditoria e Diagnóstico Completo (Raio-X):"
 echo "    - Executa varredura profunda de hardware, memória, rede, firewalls,"
-echo "      containers Docker, volumes, volumes órfãos e bancos PostgreSQL."
+echo "      containers Docker, volumes e logs."
 echo "=============================================================================="
 
 unset DEBIAN_FRONTEND
@@ -127,14 +127,12 @@ echo -e "\n${CYAN}==============================================================
 echo -e "${YELLOW}           RECURSOS DA VPS (MEMÓRIA DO SISTEMA)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# Coleta dados da RAM
 RAM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
 RAM_USED=$(free -m | awk '/Mem:/ {print $3}')
 RAM_AVAIL=$(free -m | awk '/Mem:/ {print $7}')
 RAM_BUFF=$(free -m | awk '/Mem:/ {print $6}')
 RAM_PERC=$(awk "BEGIN {printf \"%.2f\", (($RAM_TOTAL-$RAM_AVAIL)/$RAM_TOTAL)*100}")
 
-# Coleta dados do ZRAM e Swapfile
 ZRAM_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep "zram0" || echo "zram0 0 0")
 DISK_DATA=$(swapon --show=NAME,SIZE,USED --bytes | grep -v "zram0" | grep -v "NAME" || echo "disco 0 0")
 
@@ -227,127 +225,5 @@ echo -e "${CYAN}================================================================
 docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.CPUPerc}}\t{{.PIDs}}"
 
 echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           PROXY (ACESSO A WEB)${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-
-TRAEFIK_CONTAINERS=$(docker ps --format '{{.Names}}' | grep "traefik")
-for TRAEFIK_CONTAINER in $TRAEFIK_CONTAINERS; do
-    IS_RUNNING=$(docker inspect -f '{{.State.Running}}' "$TRAEFIK_CONTAINER" 2>/dev/null)
-    if [ "$IS_RUNNING" == "true" ]; then
-        echo -e "${CYAN}Container: $TRAEFIK_CONTAINER${RESET}"
-        echo -e "${YELLOW}           CERTIFICADOS SSL E SAÚDE${RESET}"
-        
-        ACME_FILE="${BASE_DIR}/proxy/traefik/certificados/acme.json"
-        
-        if [ -f "$ACME_FILE" ]; then
-            CERT_COUNT=$(grep -o '"certificate":' "$ACME_FILE" | wc -l)
-            PERM=$(stat -c "%a" "$ACME_FILE")
-            printf "%-25s %-15s\n" "CERTIFICADOS ATIVOS:" "$CERT_COUNT"
-            printf "%-25s %-15s\n" "PERMISSÃO ACME.JSON:" "$PERM (Ideal 600)"
-            
-            echo -e "\n${CYAN}Domínios com SSL Ativo:${RESET}"
-            if command -v jq >/dev/null 2>&1; then
-                jq -r '..|.main? // empty' "$ACME_FILE" 2>/dev/null | sort -u | sed 's/^/ - /'
-            else
-                grep -Po '(?<="main": ")[^"]*' "$ACME_FILE" | sort -u | sed 's/^/ - /'
-            fi
-        else
-            printf "%-25s ${RED}%-15s${RESET}\n" "ACME.JSON:" "Não encontrado"
-        fi
-        
-        echo -e ""
-        INODES=$(df -i / | awk 'NR==2 {print $5}')
-        CONNS=$(ss -ant | grep -E ':80|:443' | wc -l)
-        CRASHING=$(docker ps -a | grep -c "restarting")
-        
-        printf "%-25s %-15s\n" "INODES EM USO (/):" "$INODES"
-        printf "%-25s %-15s\n" "CONEXÕES WEB (80/443):" "$CONNS"
-        printf "%-25s %-15s\n" "CONTAINERS EM ERRO:" "$CRASHING"
-    else
-        echo -e "${CYAN}Container: $TRAEFIK_CONTAINER${RESET}"
-        echo -e "Status: ${RED}Container Parado${RESET}"
-    fi
-done
-
-TUNNEL_CONTAINERS=$(docker ps --format '{{.Names}}' | grep "tunnel")
-
-for TUNNEL_CONTAINER in $TUNNEL_CONTAINERS; do
-    IS_RUNNING_TUNNEL=$(docker inspect -f '{{.State.Running}}' "$TUNNEL_CONTAINER" 2>/dev/null)
-
-    if [ "$IS_RUNNING_TUNNEL" == "true" ]; then
-        echo -e "${CYAN}Container: $TUNNEL_CONTAINER${RESET}"
-        
-        TUNNEL_LOGS_RECENT=$(docker logs --tail 100 "$TUNNEL_CONTAINER" 2>&1)
-        TUNNEL_STATUS=$(echo "$TUNNEL_LOGS_RECENT" | grep "Registered tunnel connection" | tail -n 1)
-
-        if [[ -z "$TUNNEL_STATUS" ]]; then
-            echo -e "Status do Túnel: ${RED}Desconectado ou Iniciando...${RESET}"
-        else
-            LOCATION=$(echo "$TUNNEL_STATUS" | grep -oP 'location=\K[^ ]+')
-            echo -e "Status do Túnel: ${GREEN}Online (Registrado em $LOCATION)${RESET}"
-        fi
-
-        echo -e "${YELLOW}Sites configurados:${RESET}"
-        SITES=$(docker logs "$TUNNEL_CONTAINER" 2>&1 | \
-                grep "Updated to new configuration" | tail -n 1 | \
-                sed 's/\\//g' | \
-                grep -oP '"hostname":"\K[^"]+')
-
-        if [[ -n "$SITES" ]]; then
-            echo "$SITES" | while read -r site; do
-                echo -e "  - $site"
-            done
-        else
-            echo -e "  ${RED}(Não foi possível recuperar a lista de sites dos logs)${RESET}"
-        fi
-
-    else
-        echo -e "${CYAN}Container: $TUNNEL_CONTAINER${RESET}"
-        echo -e "Status: ${RED}Container Parado${RESET}"
-    fi
-done
-
-echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           CONEXÕES DO BANCO DE DADOS (POSTGRES)${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-
-DB_CONTAINERS=$(docker ps --format '{{.Names}}' | grep "postgres")
-
-for DB_CONTAINER in $DB_CONTAINERS; do
-    echo -e "${CYAN}Container: $DB_CONTAINER${RESET}"
-    if [ "$(docker ps -q -f name=^/${DB_CONTAINER}$)" ]; then
-        DB_USER=$(docker exec $DB_CONTAINER env | grep POSTGRES_USER | cut -d'=' -f2)
-        DB_USER=${DB_USER:-postgres}
-        DB_NAME=$(docker exec $DB_CONTAINER env | grep POSTGRES_DB | cut -d'=' -f2)
-        DB_NAME=${DB_NAME:-$DB_USER}
-        DB_STATS=$(docker exec --user postgres $DB_CONTAINER psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT state, count(*) FROM pg_stat_activity GROUP BY state;" 2>/dev/null | grep .)
-        if [ $? -eq 0 ] && [ ! -z "$DB_STATS" ]; then
-            printf "%-25s %-15s\n" "STATUS" "QUANTIDADE"
-            echo "$DB_STATS" | awk -F'|' '{status=($1==" " || $1=="" ? "Interno/System" : $1); gsub(/^[ \t]+|[ \t]+$/, "", status); printf "%-25s %-15s\n", status, $2}'
-            TOTAL_CONNS=$(echo "$DB_STATS" | awk -F'|' '{sum+=$2} END {print sum}')
-            echo -e "${CYAN}----------------------------------------------------------------${RESET}"
-            printf "%-25s ${YELLOW}%-15s${RESET}\n" "TOTAL OCUPADO:" "$TOTAL_CONNS / 200"
-        else
-            echo -e "${RED}ERRO: Dados do Postgres inacessíveis em $DB_CONTAINER.${RESET}"
-        fi
-    fi
-    echo ""
-done
-
-echo -e "\n${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}       ITENS REALMENTE ÓRFÃOS (LIXO)${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-
-STOPPED_CONS=$(docker ps -a -f status=exited -f status=created --format " - {{.Names}}")
-echo -ne "${CYAN}Containers Parados:${RESET}"; if [ -z "$STOPPED_CONS" ]; then echo " Nenhum"; else echo -e "\n$STOPPED_CONS"; fi
-DANGLING_IMGS=$(docker images -f "dangling=true" --format " - {{.ID}} ({{.Size}})")
-echo -ne "${CYAN}Imagens Órfãs (<none>):${RESET}"; if [ -z "$DANGLING_IMGS" ]; then echo " Nenhuma"; else echo -e "\n$DANGLING_IMGS"; fi
-CACHE_RECLAIM=$(docker system df --format "{{.Type}};{{.Reclaimable}}" | grep "Build Cache" | cut -d';' -f2)
-echo -ne "${CYAN}Build Cache Acumulado:${RESET} "; if [[ "$CACHE_RECLAIM" == "0B" ]] || [[ "$CACHE_RECLAIM" == "" ]]; then echo "Limpo"; else echo -e "${RED}$CACHE_RECLAIM${RESET}"; fi
-
-echo -e "\n${YELLOW}DICAS DE LIMPEZA:${RESET}"
-echo -e "1. Limpar Tudo: ${CYAN}docker system prune -f${RESET}"
-echo -e "2. Limpar Cache: ${CYAN}docker builder prune -f${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
 echo -e "${GREEN}             SETUP ABSOLUTO FINALIZADO COM SUCESSO!${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
