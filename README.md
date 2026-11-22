@@ -61,5 +61,8 @@ O script exige privilégios de superusuário (**root**) para manipular regras de
 2. Conceda permissão de execução:
 ```bash
 chmod +x setup.sh
+```
+3. Execute o script:
+```bash
 sudo ./setup.sh
 ```
