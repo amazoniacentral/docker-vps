@@ -9,7 +9,7 @@ echo " 3. Configuração Ativa do Git:"
 echo "    - Exige usuário e e-mail válidos configurados globalmente."
 echo " 4. Autenticação Concluída no GitHub e Docker:"
 echo "    - Só permite avançar na automação após o token garantir sucesso no gh e ghcr.io."
-echo "    - NUNCA aborta sozinho: se houver falhas, solicita confirmação e reitera."
+echo "    - LOOP DE INSISTÊNCIA: Insiste infinitamente até que a credencial seja válida."
 echo "=============================================================================="
 
 echo "== 1. Verificando e instalando Git e GitHub CLI (gh) =="
@@ -40,9 +40,9 @@ while true; do
     if [ -z "$CURRENT_GIT_USER" ] || [ -z "$CURRENT_GIT_EMAIL" ]; then
         TUDO_CONFIGURADO=false
         echo "⚠️ Git sem usuário ou e-mail configurados."
-        echo -n "Digite o seu Nome de Usuário de exibição Git: "
+        echo -n "Digite o seu Nome de Usuário de exibição Git (ex: Francisco Silva): "
         read -r GIT_USER < /dev/tty
-        echo -n "Digite o seu E-mail do Git: "
+        echo -n "Digite o seu E-mail do Git (ex: radioamazoniacentral@gmail.com): "
         read -r GIT_EMAIL < /dev/tty
         if [ -n "$GIT_USER" ] && [ -n "$GIT_EMAIL" ]; then
             git config --global user.name "$GIT_USER"
@@ -86,25 +86,34 @@ while true; do
     if [ "$GH_LOGADO" = false ] || [ "$DOCKER_LOGADO" = false ]; then
         TUDO_CONFIGURADO=false
         echo "⚠️ Autenticação pendente no GitHub CLI e/ou Docker (ghcr.io)."
-        echo -n "Digite seu Token do GitHub (PAT com permissões repo e read:packages): "
+        echo "💡 Dica: O Token (PAT) do GitHub precisa ter obrigatoriamente os escopos: repo, read:packages, read:org."
+        echo -n "Digite seu Token do GitHub (PAT válido): "
         read -rs GH_TOKEN_INPUT < /dev/tty
         echo ""
 
         if [ -n "$GH_TOKEN_INPUT" ]; then
             if [ "$GH_LOGADO" = false ]; then
-                echo "$GH_TOKEN_INPUT" | gh auth login --with-token
-                gh auth setup-git
+                if echo "$GH_TOKEN_INPUT" | gh auth login --with-token; then
+                    gh auth setup-git
+                    GH_LOGADO=true
+                else
+                    echo "❌ Falha na autenticação do GitHub CLI com este token. Verifique os escopos (repo, read:packages, read:org) e tente novamente."
+                fi
             fi
 
-            if [ "$DOCKER_LOGADO" = false ] && command -v docker &> /dev/null; then
+            if [ "$DOCKER_LOGADO" = false ] && command -v docker &> /dev/null && [ "$GH_LOGADO" = true ]; then
                 echo -n "Digite seu usuário do GitHub (ex: amazoniacentral): "
                 read -r GH_USERNAME < /dev/tty
                 if [ -n "$GH_USERNAME" ]; then
-                    echo "$GH_TOKEN_INPUT" | docker login ghcr.io -u "$GH_USERNAME" --password-stdin
+                    if echo "$GH_TOKEN_INPUT" | docker login ghcr.io -u "$GH_USERNAME" --password-stdin; then
+                        DOCKER_LOGADO=true
+                    else
+                        echo "❌ Falha no login do Docker (ghcr.io). Tente novamente."
+                    fi
                 fi
             fi
         else
-            echo "❌ Token vazio não é permitido para esta etapa de produção."
+            echo "❌ Token vazio não é permitido. Tentando novamente..."
         fi
     fi
 
@@ -113,17 +122,8 @@ while true; do
         echo "✅ Todas as verificações da Fase 7 foram concluídas, configuradas e conectadas com sucesso!"
         break
     else
-        echo "⚠️ Ainda existem pendências na configuração acima."
-        read -p "Deseja tentar novamente a configuração? (S/n): " TENTAR_DE_NOVO < /dev/tty
-        TENTAR_DE_NOVO=${TENTAR_DE_NOVO:-S}
-        if [[ "$TENTAR_DE_NOVO" =~ ^[Nn]$ ]]; then
-            read -p "Tem certeza que deseja abortar/interromper o processo de configuração? (s/N): " CONFIRMA_ABORTO < /dev/tty
-            if [[ "$CONFIRMA_ABORTO" =~ ^[Ss]$ ]]; then
-                echo "❌ Operação interrompida pelo usuário mediante confirmação explicita."
-                exit 1
-            else
-                echo "🔄 Retornando ao processo de configuração..."
-            fi
-        fi
+        echo "⚠️ Configuração incompleta ou falha de autenticação detectada."
+        echo "🔄 Reiniciando o processo de validação automaticamente em instantes..."
+        sleep 2
     fi
 done
