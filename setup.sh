@@ -47,7 +47,7 @@ fi
 
 clear
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}           INICIANDO SETUP INTEGRADO (SISTEMA + FIREWALL)${RESET}"
+echo -e "${YELLOW}           INICIANDO SETUP INTEGRADO (9 FASES)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
 # Identifica o diretório do script (com fallback caso rode via curl | bash)
@@ -73,56 +73,54 @@ carregar_fase() {
     fi
 }
 
-# --- EXECUÇÃO DAS FASES ---
+# --- EXECUÇÃO DAS 9 FASES ---
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 1: Dependências do Sistema ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 1: Otimização ZRAM ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase1.sh"
+carregar_fase "01-zram.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 2: Desbloqueio e Limpeza ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 2: Swapfile de Segurança ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase2.sh"
+carregar_fase "02-swapfile.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 3: Instalação Silenciosa e Base ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 3: Pacotes Base e Fail2Ban ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase3.sh"
+carregar_fase "03-base-fail2ban.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 4: Performance (ZRAM & SWAP) ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 4: Docker Engine Oficial ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase4.sh"
-
-# Controle de Fluxo do Docker e Firewall
-echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 5: Instalação / Verificação do Docker ==${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase5.sh"
-
-# Gerenciamento Dinâmico do Firewall (Com ou Sem Docker)
-echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 6: Configuração Inteligente do Firewall ==${RESET}"
-echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase6.sh"
+carregar_fase "04-docker-install.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 7: Configuração Git ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 5: Limpeza de Resíduos Docker ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase7.sh"
+carregar_fase "05-docker-cleanup.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 8: SSH e Segurança ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 6: Firewall Inteligente IPTABLES ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase8.sh"
+carregar_fase "06-firewall.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Executando Limpeza Final ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 7: Git e GitHub CLI ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+carregar_fase "07-git-tools.sh"
+
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Carregando Fase 8: Hardening do SSH ==${RESET}"
+echo -e "${CYAN}================================================================${RESET}"
+carregar_fase "08-ssh-hardening.sh"
+
+echo -e "${CYAN}================================================================${RESET}"
+echo -e "${YELLOW}== Executando Limpeza do Sistema (Autoremove/Autoclean) ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 apt autoremove -y && apt autoclean
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 9: Log de Monitoramento Final ==${RESET}"
+echo -e "${YELLOW}== Carregando Fase 9: Log de Monitoramento Final (Raio-X) ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-carregar_fase "fase9.sh"
+carregar_fase "09-raiox.sh"
