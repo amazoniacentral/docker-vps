@@ -1,13 +1,11 @@
 <!-- START_ID:cabecalho -->
-# FSilva Cloud
-*Infraestrutura de Alta Disponibilidade e Orquestração de Containers*
-
-_Uma estrutura híbrida para garantir que seus aplicativos Docker estejam acessíveis de forma segura e eficiente, adaptando-se a diferentes cenários de rede._
+# FSILVA CLOUD: PROVISIONAMENTO E BLINDAGEM DE VPS
+## Infraestrutura Modular, Automatizada e de Alta Performance para Debian 12
 <!-- END_ID:cabecalho -->
 
 <!-- START_ID:bloco_estrutura -->
 ```bash
-./scripts/documentacao
+./.doc
 ├── blocos.sh
 ├── cabecalho.sh
 ├── estrutura.sh
@@ -23,7 +21,7 @@ _Uma estrutura híbrida para garantir que seus aplicativos Docker estejam acess�
 
 <!-- START_ID:bloco_final -->
 ---
-**Desenvolvido por Francisco Silva (FSilva)**
+**Desenvolvido por Francisco Silva (FSilva Cloud)**
 
 _Atualizado em: 22/11/2026_
 <!-- END_ID:bloco_final -->

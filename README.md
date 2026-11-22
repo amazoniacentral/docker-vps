@@ -1,4 +1,6 @@
 <!-- START_ID:cabecalho -->
+# FSILVA CLOUD: PROVISIONAMENTO E BLINDAGEM DE VPS
+## Infraestrutura Modular, Automatizada e de Alta Performance para Debian 12
 <!-- END_ID:cabecalho -->
 
 Este projeto consiste em um script avançado de automação em Bash desenvolvido para provisionar, endurecer e monitorar servidores virtuais privados (VPS) rodando **Debian GNU/Linux 12 (Bookworm)**. Ele foi arquitetado para eliminar tarefas manuais repetitivas, aplicando padrões rigorosos de segurança de rede, otimização extrema de recursos de hardware e resiliência operacional para ambientes de produção.
@@ -68,8 +70,40 @@ sudo ./setup.sh
 ```
 
 <!-- START_ID:bloco_estrutura -->
+```bash
+.
+├── .doc
+│   ├── blocos.sh
+│   ├── cabecalho.sh
+│   ├── estrutura.sh
+│   ├── README.md
+│   ├── rodape.sh
+│   ├── setup.sh
+│   └── variaveis.sh
+├── fases
+│   ├── 01-deps-sistema.sh
+│   ├── 02-unlock-apt.sh
+│   ├── 03-base-fail2ban.sh
+│   ├── 04-zram-swap.sh
+│   ├── 05-docker-engine.sh
+│   ├── 06-firewall.sh
+│   ├── 07-git-tools.sh
+│   ├── 08-ssh-hardening.sh
+│   ├── 09-raiox.sh
+│   └── README.md
+├── .gitignore
+├── LICENSE
+├── README.md
+└── setup.sh
+
+3 directories, 21 files
+```
 <!-- END_ID:bloco_estrutura -->
 
 <!-- START_ID:bloco_final -->
+---
+**Desenvolvido por Francisco Silva (FSilva Cloud)**
+
+_Atualizado em: 22/11/2026_
 <!-- END_ID:bloco_final -->
 
