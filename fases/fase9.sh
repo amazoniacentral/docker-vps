@@ -1,4 +1,17 @@
 # --- FASE 9: LOG DE MONITORAMENTO FINAL (RAIO-X COMPLETO) ---
+echo "=============================================================================="
+echo " O QUE ESTE SCRIPT FAZ:"
+echo " 1. Resumo Global das Fases Anteriores:"
+echo "    - Fases 1 & 2: Sincronização de relógio, ZRAM (zstd) e Swapfile de 6GB."
+echo "    - Fases 3 & 4: Fail2Ban ativado e Docker Engine instalado com segurança."
+echo "    - Fases 5 & 6: Firewall inteligente via IPTables (cadeia DOCKER-USER)."
+echo "    - Fase 7: Git, GitHub CLI (gh) e autenticação obrigatória (ghcr.io)."
+echo "    - Fase 8: Hardening do SSH (KeepAlive e acesso por senha mantido)."
+echo " 2. Auditoria e Diagnóstico Completo (Raio-X):"
+echo "    - Executa varredura profunda de hardware, memória, rede, firewalls,"
+echo "      containers Docker, volumes, volumes órfãos e bancos PostgreSQL."
+echo "=============================================================================="
+
 unset DEBIAN_FRONTEND
 clear
 echo -e "${CYAN}================================================================${RESET}"
@@ -259,16 +272,12 @@ done
 TUNNEL_CONTAINERS=$(docker ps --format '{{.Names}}' | grep "tunnel")
 
 for TUNNEL_CONTAINER in $TUNNEL_CONTAINERS; do
-    # Verifica se o container está de fato rodando
     IS_RUNNING_TUNNEL=$(docker inspect -f '{{.State.Running}}' "$TUNNEL_CONTAINER" 2>/dev/null)
 
     if [ "$IS_RUNNING_TUNNEL" == "true" ]; then
         echo -e "${CYAN}Container: $TUNNEL_CONTAINER${RESET}"
         
-        # Captura logs recentes para o status
         TUNNEL_LOGS_RECENT=$(docker logs --tail 100 "$TUNNEL_CONTAINER" 2>&1)
-        
-        # 1. Verifica Status de Conexão
         TUNNEL_STATUS=$(echo "$TUNNEL_LOGS_RECENT" | grep "Registered tunnel connection" | tail -n 1)
 
         if [[ -z "$TUNNEL_STATUS" ]]; then
@@ -278,10 +287,7 @@ for TUNNEL_CONTAINER in $TUNNEL_CONTAINERS; do
             echo -e "Status do Túnel: ${GREEN}Online (Registrado em $LOCATION)${RESET}"
         fi
 
-        # 2. Extrai a lista de Sites (Hostnames)
         echo -e "${YELLOW}Sites configurados:${RESET}"
-        
-        # Buscamos a linha de configuração, removemos as barras invertidas '\' e depois extraímos os hostnames
         SITES=$(docker logs "$TUNNEL_CONTAINER" 2>&1 | \
                 grep "Updated to new configuration" | tail -n 1 | \
                 sed 's/\\//g' | \
