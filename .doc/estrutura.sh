@@ -32,7 +32,7 @@ find "$BASE_DIR" \( -path "$BASE_DIR/.doc" -o -path "$BASE_DIR/repos/*/*" \) -pr
 
     # Gera a estrutura de pastas
     cd $BASE_DIR
-    tree -a -I '.git|.github|node_modules|repos/*/*' -L 3 --dirsfirst ".${DIRETORIO_ALVO#$BASE_DIR}" > "$ARQUIVO_TEMP"
+    tree -a -I '.git|.github|.doc|node_modules' -L 3 --dirsfirst ".${DIRETORIO_ALVO#$BASE_DIR}" > "$ARQUIVO_TEMP"
     cd $SCRIPT_DIR
     # Captura o resultado do tree
     ESTRUTURA_TREE=$(cat "$ARQUIVO_TEMP")
