@@ -40,7 +40,7 @@ while true; do
     if [ -z "$CURRENT_GIT_USER" ] || [ -z "$CURRENT_GIT_EMAIL" ]; then
         TUDO_CONFIGURADO=false
         echo "⚠️ Git sem usuário ou e-mail configurados."
-        echo -n "Digite o seu Nome de Usuário Git: "
+        echo -n "Digite o seu Nome de Usuário de exibição Git: "
         read -r GIT_USER < /dev/tty
         echo -n "Digite o seu E-mail do Git: "
         read -r GIT_EMAIL < /dev/tty
