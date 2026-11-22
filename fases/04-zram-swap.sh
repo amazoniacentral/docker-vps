@@ -5,7 +5,7 @@ echo " 1. Limpeza Cirúrgica (Reset Preventivo):"
 echo "    - Interrompe e descarrega da memória qualquer serviço ZRAM anterior."
 echo " 2. Ativação Inteligente de ZRAM:"
 echo "    - Tenta ativar o ZRAM com compressão 'zstd' para compactar a RAM em tempo"
-echo "      real, economizando espaço e acelerando o servidor."
+echo "      real, economizando espaço e acelerando o servidor (configurado para 50%)."
 echo " 3. Sistema de Contingência (Fallback de Swap):"
 echo "    - Se o ZRAM funcionar, cria um Swapfile em disco de 4G."
 echo "    - Se o ZRAM falhar, ativa um Swapfile maior de 6G para blindar a VPS."
@@ -39,15 +39,15 @@ fi
 # 2. Validação Real de Suporte ao Módulo ZRAM
 echo "== Validando suporte a ZRAM no ambiente =="
 if modprobe zram 2>/dev/null; then
-    # Se o módulo carregou, tentamos startar o serviço
+    # Se o módulo carregou, configuramos o ZRAM para 50% da RAM com compressão zstd
     cat <<EOF > /etc/default/zramswap
 ALGO=zstd
-PERCENT=100
+PERCENT=50
 PRIORITY=100
 EOF
     systemctl daemon-reload
     if systemctl start zramswap 2>/dev/null; then
-        echo "ZRAM ativado e iniciado com sucesso!"
+        echo "ZRAM ativado e iniciado com sucesso (50% da RAM)!"
         ZRAM_SUPORTADO=true
     fi
 fi
