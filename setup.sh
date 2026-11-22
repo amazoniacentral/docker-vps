@@ -50,52 +50,72 @@ echo -e "${CYAN}================================================================
 echo -e "${YELLOW}           INICIANDO SETUP INTEGRADO (SISTEMA + FIREWALL)${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
 
-# URL Base onde os arquivos das fases estão hospedados
-BASE_URL="https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/fases"
+# Identifica o diretório do script (com fallback caso rode via curl | bash)
+SCRIPT_DIR=$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$PWD")")
 
-# --- EXECUÇÃO DAS FASES REMOTAS ---
+if [ -d "${SCRIPT_DIR}/fases" ]; then
+    MODO_LOCAL=true
+    BASE_PATH="${SCRIPT_DIR}/fases"
+    echo -e "${GREEN}📁 Pasta local 'fases' encontrada. Carregando arquivos locais...${RESET}"
+else
+    MODO_LOCAL=false
+    BASE_PATH="https://raw.githubusercontent.com/amazoniacentral/docker-vps/main/fases"
+    echo -e "${CYAN}🌐 Pasta local 'fases' não encontrada. Carregando via GitHub...${RESET}"
+fi
+
+# Função para carregar a fase localmente ou remotamente
+carregar_fase() {
+    local arquivo="$1"
+    if [ "$MODO_LOCAL" = true ]; then
+        source "${BASE_PATH}/${arquivo}"
+    else
+        source <(curl -fsSL "${BASE_PATH}/${arquivo}")
+    fi
+}
+
+# --- EXECUÇÃO DAS FASES ---
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 1: Dependências do Sistema ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase1.sh")
+carregar_fase "fase1.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
-echo -e "${YELLOW}== Carregando Fase 2: Desbloqueio e Limpeza =${RESET}"
+echo -e "${YELLOW}== Carregando Fase 2: Desbloqueio e Limpeza ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase2.sh")
+carregar_fase "fase2.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 3: Instalação Silenciosa e Base ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase3.sh")
+carregar_fase "fase3.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 4: Performance (ZRAM & SWAP) ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase4.sh")
+carregar_fase "fase4.sh"
 
 # Controle de Fluxo do Docker e Firewall
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 5: Instalação / Verificação do Docker ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase5.sh")
+carregar_fase "fase5.sh"
 
 # Gerenciamento Dinâmico do Firewall (Com ou Sem Docker)
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 6: Configuração Inteligente do Firewall ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase6.sh")
+carregar_fase "fase6.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 7: Configuração Git ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase7.sh")
+carregar_fase "fase7.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 8: SSH e Segurança ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase8.sh")
+carregar_fase "fase8.sh"
 
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Executando Limpeza Final ==${RESET}"
@@ -105,4 +125,4 @@ apt autoremove -y && apt autoclean
 echo -e "${CYAN}================================================================${RESET}"
 echo -e "${YELLOW}== Carregando Fase 9: Log de Monitoramento Final ==${RESET}"
 echo -e "${CYAN}================================================================${RESET}"
-source <(curl -fsSL "${BASE_URL}/fase9.sh")
+carregar_fase "fase9.sh"
